@@ -58,13 +58,22 @@ dpm script --dar .daml/dist/daml-0.0.1.dar \
   --output-file /tmp/netting-party-us.json > /dev/null 2>&1
 
 python3 - "$ROOT/apps/web/.env.local" <<'EOF'
-import json, sys
+import json, os, sys
 env_path = sys.argv[1]
 parties = json.load(open("/tmp/netting-parties.json"))
 us = json.load(open("/tmp/netting-party-us.json"))
 op, de, fr, sg = parties["_1"], parties["_2"], parties["_3"], parties["_4"]
 party_map = {"Acme DE": de, "Acme FR": fr, "Acme SG": sg, "Acme US": us}
-lines = [l for l in open(env_path).read().splitlines()
+lines = [l for l in open(env_path).read().splitlines() if l.strip()]
+have = {l.split("=", 1)[0] for l in lines if "=" in l}
+defaults = {
+    "CANTON_JSON_API_URL": os.environ.get("CANTON_JSON_API_URL", "http://localhost:6864"),
+    "CANTON_USER_ID": os.environ.get("CANTON_USER_ID", "netting-app"),
+}
+for key, value in defaults.items():
+    if key not in have:
+        lines.append(f"{key}={value}")
+lines = [l for l in lines
          if not l.startswith(("CANTON_OPERATOR_PARTY=", "CANTON_PARTY_MAP_JSON="))]
 lines += [f"CANTON_OPERATOR_PARTY={op}",
           f"CANTON_PARTY_MAP_JSON={json.dumps(party_map)}"]
