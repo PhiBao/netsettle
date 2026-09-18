@@ -1,0 +1,28 @@
+{
+  "name": "@netting/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev -p 3100",
+    "build": "next build",
+    "start": "next start -p 3100",
+    "typecheck": "tsc --noEmit",
+    "test": "echo 'web tests run via workspace typecheck + build'"
+  },
+  "dependencies": {
+    "@netting/canton-gateway": "workspace:*",
+    "@netting/core": "workspace:*",
+    "@netting/typesafe-judgments": "workspace:*",
+    "@typesafe-ai/sdk": "0.6.0",
+    "next": "16.3.5",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.7.4",
+    "@types/react": "19.0.0",
+    "@types/react-dom": "19.0.0",
+    "typescript": "5.6.3"
+  }
+}

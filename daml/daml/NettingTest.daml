@@ -1,0 +1,108 @@
+module NettingTest where
+
+import Daml.Script
+import DA.Date (toDateUTC)
+import DA.Time (addRelTime, days)
+import Netting
+
+-- Canonical demo: DE -> FR 100k, FR -> SG 80k, SG -> DE 60k (USD minor units).
+-- Net: DE owes 40k; FR is owed 20k; SG is owed 20k.
+-- Expected residuals: DE -> FR 20k, DE -> SG 20k.
+setupParties : Script (Party, Party, Party, Party)
+setupParties = script do
+  operator <- allocateParty "TreasuryOps"
+  de <- allocateParty "AcmeDE"
+  fr <- allocateParty "AcmeFR"
+  sg <- allocateParty "AcmeSG"
+  return (operator, de, fr, sg)
+
+createDemoObligations : Party -> Party -> Party -> Party -> Script [ContractId Obligation]
+createDemoObligations operator de fr sg = script do
+  now <- getTime
+  let due = toDateUTC now
+  o1 <- submitMulti [operator, de] [] do
+    createCmd Obligation with
+      operator
+      debtor = de
+      creditor = fr
+      amountMinor = 10000000
+      currency = "USD"
+      dueDate = due
+      reference = "INV-001"
+  o2 <- submitMulti [operator, fr] [] do
+    createCmd Obligation with
+      operator
+      debtor = fr
+      creditor = sg
+      amountMinor = 8000000
+      currency = "USD"
+      dueDate = due
+      reference = "INV-002"
+  o3 <- submitMulti [operator, sg] [] do
+    createCmd Obligation with
+      operator
+      debtor = sg
+      creditor = de
+      amountMinor = 6000000
+      currency = "USD"
+      dueDate = due
+      reference = "INV-003"
+  return [o1, o2, o3]
+
+createDemoProposal : Party -> Party -> Party -> Party -> [ContractId Obligation] -> Script (ContractId NettingProposal)
+createDemoProposal operator de fr sg obligations = script do
+  expiry <- addRelTime <$> getTime <*> pure (days 30)
+  submit operator do
+    createCmd NettingProposal with
+      operator
+      proposalId = "PROP-0001"
+      currency = "USD"
+      obligationCids = obligations
+      residuals = [(de, fr, 2000000), (de, sg, 2000000)]
+      requiredApprovers = [de, fr, sg]
+      expiresAt = expiry
+
+approveAll : Party -> Party -> Party -> Party -> Script [ContractId Approval]
+approveAll operator de fr sg = script do
+  a1 <- submit de do
+    createCmd Approval with operator, approver = de, proposalId = "PROP-0001"
+  a2 <- submit fr do
+    createCmd Approval with operator, approver = fr, proposalId = "PROP-0001"
+  a3 <- submit sg do
+    createCmd Approval with operator, approver = sg, proposalId = "PROP-0001"
+  return [a1, a2, a3]
+
+-- Allocate the fourth demo subsidiary for the web demo dataset.
+setupDemoExtra : Script Party
+setupDemoExtra = script do
+  allocateParty "AcmeUS"
+
+-- Positive path: full approvals, atomic execution, two receipts, obligations gone.
+testExecute : Script ()
+testExecute = script do
+  (operator, de, fr, sg) <- setupParties
+  obligations <- createDemoObligations operator de fr sg
+  proposal <- createDemoProposal operator de fr sg obligations
+  approvals <- approveAll operator de fr sg
+  receipts <- submit operator do exerciseCmd proposal Execute with approvalCids = approvals
+  assert (length receipts == 2)
+  -- Obligations must be archived: the operator sees nothing active.
+  remaining <- query @Obligation operator
+  assert (null remaining)
+
+-- Negative path: execution without every approval must fail; nothing settles.
+testExecuteBlocked : Script ()
+testExecuteBlocked = script do
+  (operator, de, fr, sg) <- setupParties
+  obligations <- createDemoObligations operator de fr sg
+  proposal <- createDemoProposal operator de fr sg obligations
+  partial <- submit de do
+    createCmd Approval with operator, approver = de, proposalId = "PROP-0001"
+  submitMustFail operator do exerciseCmd proposal Execute with approvalCids = [partial]
+  -- And the obligations are still live: nothing partially settled.
+  remaining <- query @Obligation operator
+  assert (length remaining == 3)
+  -- Approvals for other proposals do not count either.
+  decoy <- submit fr do
+    createCmd Approval with operator, approver = fr, proposalId = "PROP- decoy"
+  submitMustFail operator do exerciseCmd proposal Execute with approvalCids = [partial, decoy]

@@ -1,0 +1,97 @@
+module Netting where
+
+-- An intercompany payable: DEBTOR owes CREDITOR AMOUNTMINOR (integer minor
+-- units, never a float) in CURRENCY, due DUEDATE.
+-- The operator (treasury service) and the debtor co-sign creation; the creditor
+-- observes. Nobody else on the ledger sees this contract.
+template Obligation
+  with
+    operator : Party
+    debtor : Party
+    creditor : Party
+    amountMinor : Int
+    currency : Text
+    dueDate : Date
+    reference : Text
+  where
+    ensure amountMinor > 0 && currency /= "" && reference /= ""
+    signatory operator, debtor
+    observer creditor
+
+    -- Consuming: an obligation can only be archived as part of an executed
+    -- netting proposal, inside the same atomic transaction.
+    choice Settle : ()
+      controller operator
+      do return ()
+
+-- A subsidiary's approval of one specific proposal. Signed by the approver
+-- alone, observed by the operator, so any party can approve without needing
+-- the operator's authority at approval time.
+template Approval
+  with
+    operator : Party
+    approver : Party
+    proposalId : Text
+  where
+    ensure proposalId /= ""
+    signatory approver
+    observer operator
+
+-- A computed multilateral netting proposal over a set of obligations.
+-- RESIDUALS are the (from, to, amountMinor) transfers replacing gross
+-- settlement. EXECUTE archives every listed obligation and issues one receipt
+-- per residual in a single atomic transaction: partial settlement is impossible
+-- by construction, because a failed sub-action aborts the whole transaction.
+template NettingProposal
+  with
+    operator : Party
+    proposalId : Text
+    currency : Text
+    obligationCids : [ContractId Obligation]
+    residuals : [(Party, Party, Int)]
+    requiredApprovers : [Party]
+    expiresAt : Time
+  where
+    ensure proposalId /= "" && not (null obligationCids) && not (null residuals)
+    signatory operator
+    observer requiredApprovers
+
+    choice Execute : [ContractId SettlementReceipt]
+      with
+        approvalCids : [ContractId Approval]
+      controller operator
+      do
+        now <- getTime
+        assertMsg "proposal expired" (now <= expiresAt)
+        approvals <- mapA (\cid -> fetch cid) approvalCids
+        let approvers = map (.approver) (filter (\a -> a.proposalId == proposalId) approvals)
+        assertMsg "missing approvals" (all (`elem` approvers) requiredApprovers)
+        mapA (\obligationCid -> exercise obligationCid Settle) obligationCids
+        mapA
+          (\(from, to, amount) ->
+            create SettlementReceipt with
+              operator
+              proposalId
+              from
+              to
+              amountMinor = amount
+              currency
+              settledAt = now
+          )
+          residuals
+
+-- Per-subsidiary evidence of settlement. FROM and TO observe only their own
+-- receipt; they learn nothing about other residuals in the batch.
+template SettlementReceipt
+  with
+    operator : Party
+    proposalId : Text
+    from : Party
+    to : Party
+    amountMinor : Int
+    currency : Text
+    settledAt : Time
+  where
+    ensure amountMinor > 0
+    signatory operator
+    observer from, to

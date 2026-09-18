@@ -1,0 +1,15 @@
+node_modules/
+.next/
+dist/
+*.tsbuildinfo
+.daml/
+*.log
+log/
+apps/web/.env*.local
+/tmp/
+.DS_Store
+# Agent operating files — not part of the submission
+AGENTS.md
+FOUNDER.md
+opencode.json
+opencode.alt.json
