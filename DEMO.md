@@ -22,7 +22,7 @@ Load demo dataset. Point out:
 
 Create netting proposal. The hero numbers:
 
-- **Gross $312,000 across 6 invoices → net $40,000 in 3 transfers.**
+- **8 rows ingested → 6 eligible → gross $312,000 → net $40,000 in 3 transfers.**
 - Residuals listed with from/to/amount. Proposal contract ID on screen — this
   is a real ledger contract, not a mock.
 
@@ -37,6 +37,10 @@ signed by that subsidiary alone. Then **Execute atomic settlement**:
 Then the failure proof: start a second cycle, attempt settlement with approvals
 missing → **"Settlement refused — ledger untouched"** with the exact missing
 parties listed.
+
+Then the bank artifact: download the payment file (CSV) — one row per residual
+transfer, each referencing its ledger receipt contract. "The atomic transaction
+decided the outcome; this file is what the treasury uploads to the bank."
 
 ## 3:45 Privacy check (60s)
 
@@ -54,6 +58,8 @@ out loud:
 becomes an approval-gated atomic operation. One corporate group is the whole
 beachhead: one signature onboards every subsidiary."
 
-## If the network fails
+## If the network fails — or the shared demo gets polluted
 
-Play the recorded backup. Never debug live.
+The public demo is shared mutable state. If anything looks off, hit **Reset
+demo** on the ingest page and reload the dataset (30 seconds, deterministic).
+If the network itself fails, play the recorded backup. Never debug live.

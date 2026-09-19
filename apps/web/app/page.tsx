@@ -90,6 +90,25 @@ export default function IngestPage() {
           <button className="btn" disabled={busy} onClick={() => ingest(true)}>
             Load demo dataset
           </button>
+          <button
+            className="btn danger"
+            disabled={busy}
+            title="Wipe all local demo state and start over"
+            onClick={async () => {
+              setBusy(true);
+              setError(null);
+              try {
+                await fetch("/api/reset", { method: "POST" });
+                setCounts(null);
+              } catch (err) {
+                setError(String(err));
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            Reset demo
+          </button>
         </div>
         {error && <div className="err">{error}</div>}
         <p className="muted small">

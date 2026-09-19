@@ -10,7 +10,8 @@ against the subsidiary roster, compresses offsetting cycles, collects
 per-subsidiary approvals, and settles the residual in **one atomic Canton
 transaction** — with each subsidiary seeing only its own legs.
 
-Demo: **$312,000 gross across 8 invoices → $40,000 net in 3 transfers.**
+Demo: **8 payables rows ingested → 6 eligible → $312,000 gross compressed to $40,000 net in 3 transfers**
+(one near-duplicate dropped in review, one unknown counterparty excluded).
 
 ## Why Canton (and not a database)
 
@@ -21,6 +22,11 @@ Demo: **$312,000 gross across 8 invoices → $40,000 net in 3 transfers.**
    N parties recreates settlement risk. The `NettingProposal.Execute` choice
    archives every obligation and issues every receipt in a single transaction —
    a failed leg aborts everything.
+3. **The decision must reach the bank.** Settlement concludes with a
+   bank-actionable payment file (CSV: one row per residual transfer, each
+   referencing its ledger receipt contract). The atomic Canton transaction
+   decides the netting outcome; the file carries that decision into the existing
+   banking rail — no new token, no parallel currency.
 
 ## Honest trust boundary
 
@@ -79,3 +85,5 @@ on the deterministic fallback and marks judgments for review.
   obligations.
 - `/api/view?party=` returns per-party ledger-verified counts alongside the
   scoped view.
+- `/api/payment-file?proposalId=` downloads the bank payment CSV for a settled
+  proposal; totals reconcile exactly with the net settlement amount.

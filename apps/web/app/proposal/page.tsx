@@ -203,6 +203,17 @@ export default function ProposalPage() {
                     </li>
                   ))}
                 </ul>
+                <div className="row" style={{ marginTop: 12 }}>
+                  <a className="btn primary" href={`/api/payment-file?proposalId=${proposal.id}`} style={{ textDecoration: "none" }}>
+                    Download payment file (CSV)
+                  </a>
+                </div>
+                <p className="muted small" style={{ marginBottom: 0 }}>
+                  Take this file to the bank: one row per residual transfer, each
+                  referencing its ledger receipt contract. The atomic Canton
+                  transaction decided the netting outcome — this file carries that
+                  decision into the existing banking rail.
+                </p>
               </div>
             )}
           </div>
