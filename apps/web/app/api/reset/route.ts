@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { resetStore } from "@/lib/store";
+import { getSessionStore, resetSessionStore, withSession } from "@/lib/store";
 
 export async function POST() {
-  return NextResponse.json(resetStore());
+  const session = await getSessionStore();
+  return withSession(NextResponse.json(resetSessionStore(session.sessionId)), session);
 }

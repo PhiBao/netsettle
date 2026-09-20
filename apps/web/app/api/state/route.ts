@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { ledgerStatus } from "@/lib/ledger";
-import { getStore } from "@/lib/store";
+import { getSessionStore, withSession } from "@/lib/store";
 
 export async function GET() {
-  const store = getStore();
-  return NextResponse.json({ ...store, ledger: ledgerStatus() });
+  const session = await getSessionStore();
+  return withSession(
+    NextResponse.json({ ...session.store, ledger: ledgerStatus() }),
+    session,
+  );
 }

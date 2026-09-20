@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { createProposal } from "@netting/core";
 import { GatewayError } from "@netting/canton-gateway";
 import { getLedger, LedgerNotConfiguredError, partyIdFor } from "@/lib/ledger";
-import { getStore } from "@/lib/store";
+import { getSessionStore, withSession } from "@/lib/store";
 
 export async function POST(request: Request) {
   const { expiresAt } = (await request.json().catch(() => ({}))) as { expiresAt?: string };
-  const store = getStore();
+  const session = await getSessionStore();
+  const store = session.store;
   const eligible = store.obligations.filter((o) => o.status === "pending" && !o.reviewRequired);
   if (eligible.length === 0) {
     return NextResponse.json({ error: "No eligible obligations. Resolve reviews first." }, { status: 409 });
@@ -61,7 +62,7 @@ export async function POST(request: Request) {
       expiresAt: proposal.expiresAt,
     });
     store.proposals.push({ ...proposal, ledgerCid, ledgerApprovalCids: [], receipts: [] });
-    return NextResponse.json({ proposal, ledgerCid });
+    return withSession(NextResponse.json({ proposal, ledgerCid }), session);
   } catch (err) {
     if (err instanceof LedgerNotConfiguredError) {
       return NextResponse.json(

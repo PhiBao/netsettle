@@ -1,3 +1,5 @@
+import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
 import type {
   NettingProposal,
   Obligation,
@@ -5,10 +7,13 @@ import type {
 } from "@netting/core";
 
 /**
- * Demo store: single-tenant, in-memory.
- * A production deployment would persist this per workspace in a database;
- * for the hackathon demo the ledger is the system of record and this store
- * is a read-through cache of what the operator submitted.
+ * Demo store: per-session, in-memory.
+ *
+ * Judging week means concurrent visitors on one public host. A single global
+ * store lets one visitor's ingest wipe another's in-flight proposal, so each
+ * browser session gets its own store keyed by a cookie. The Canton ledger is
+ * shared and append-only — the source of truth — while each session keeps its
+ * own read-through cache of what it submitted.
  */
 export interface StoredObligation extends Obligation {
   ledgerCid?: string;
@@ -43,6 +48,9 @@ export interface DemoStore {
   batchPriority: { score: number; confidence: number; source: string } | null;
 }
 
+export const SESSION_COOKIE = "ns-session";
+const MAX_SESSIONS = 100;
+
 const freshStore = (): DemoStore => ({
   roster: [],
   obligations: [],
@@ -54,15 +62,56 @@ const freshStore = (): DemoStore => ({
 
 declare global {
   // eslint-disable-next-line no-var
-  var __nettingStore: DemoStore | undefined;
+  var __nettingStores: Map<string, DemoStore> | undefined;
 }
 
-export function getStore(): DemoStore {
-  if (!globalThis.__nettingStore) globalThis.__nettingStore = freshStore();
-  return globalThis.__nettingStore;
+function storeMap(): Map<string, DemoStore> {
+  if (!globalThis.__nettingStores) globalThis.__nettingStores = new Map();
+  return globalThis.__nettingStores;
 }
 
-export function resetStore(): DemoStore {
-  globalThis.__nettingStore = freshStore();
-  return globalThis.__nettingStore;
+export interface SessionContext {
+  store: DemoStore;
+  sessionId: string;
+  isNew: boolean;
+}
+
+export async function getSessionStore(): Promise<SessionContext> {
+  const jar = await cookies();
+  const map = storeMap();
+  let sessionId = jar.get(SESSION_COOKIE)?.value;
+  let isNew = false;
+  if (!sessionId || !map.has(sessionId)) {
+    sessionId = crypto.randomUUID();
+    map.set(sessionId, freshStore());
+    isNew = true;
+    while (map.size > MAX_SESSIONS) {
+      const oldest = map.keys().next().value as string | undefined;
+      if (oldest === undefined) break;
+      map.delete(oldest);
+    }
+  }
+  return { store: map.get(sessionId)!, sessionId, isNew };
+}
+
+export function resetSessionStore(sessionId: string): DemoStore {
+  const store = freshStore();
+  storeMap().set(sessionId, store);
+  return store;
+}
+
+/** Attach the session cookie to a response for newly created sessions. */
+export function withSession<T extends NextResponse>(
+  response: T,
+  session: SessionContext,
+): T {
+  if (session.isNew) {
+    response.cookies.set(SESSION_COOKIE, session.sessionId, {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24,
+    });
+  }
+  return response;
 }

@@ -2,14 +2,15 @@ import { NextResponse } from "next/server";
 import { approveProposal } from "@netting/core";
 import { GatewayError } from "@netting/canton-gateway";
 import { getLedger, LedgerNotConfiguredError, partyIdFor } from "@/lib/ledger";
-import { getStore } from "@/lib/store";
+import { getSessionStore, withSession } from "@/lib/store";
 
 export async function POST(request: Request) {
   const { proposalId, partyKey } = (await request.json()) as {
     proposalId: string;
     partyKey: string;
   };
-  const store = getStore();
+  const session = await getSessionStore();
+  const store = session.store;
   const index = store.proposals.findIndex((p) => p.id === proposalId);
   if (index === -1) return NextResponse.json({ error: "Proposal not found" }, { status: 404 });
   const proposal = store.proposals[index];
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
       ledgerApprovalCids: [...proposal.ledgerApprovalCids, approvalCid],
       receipts: proposal.receipts,
     };
-    return NextResponse.json({ proposal: store.proposals[index], approvalCid });
+    return withSession(NextResponse.json({ proposal: store.proposals[index], approvalCid }), session);
   } catch (err) {
     if (err instanceof LedgerNotConfiguredError) {
       return NextResponse.json({ error: "ledger_not_configured", message: err.message }, { status: 503 });

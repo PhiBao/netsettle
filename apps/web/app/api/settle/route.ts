@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { formatMinor, settlementBlockers } from "@netting/core";
 import { GatewayError } from "@netting/canton-gateway";
 import { getLedger, LedgerNotConfiguredError } from "@/lib/ledger";
-import { getStore } from "@/lib/store";
+import { getSessionStore, withSession } from "@/lib/store";
 
 export async function POST(request: Request) {
   const { proposalId } = (await request.json()) as { proposalId: string };
-  const store = getStore();
+  const session = await getSessionStore();
+  const store = session.store;
   const index = store.proposals.findIndex((p) => p.id === proposalId);
   if (index === -1) return NextResponse.json({ error: "Proposal not found" }, { status: 404 });
   const proposal = store.proposals[index];
@@ -51,14 +52,14 @@ export async function POST(request: Request) {
       if (obligation) obligation.status = "settled";
     }
     store.proposals[index] = { ...proposal, status: "settled", receipts: displayReceipts };
-    return NextResponse.json({
+    return withSession(NextResponse.json({
       settled: true,
       receipts: displayReceipts,
       summary: {
         gross: formatMinor(proposal.summary.grossMinor, proposal.currency),
         net: formatMinor(proposal.summary.netMovedMinor, proposal.currency),
       },
-    });
+    }), session);
   } catch (err) {
     if (err instanceof LedgerNotConfiguredError) {
       return NextResponse.json({ error: "ledger_not_configured", message: err.message }, { status: 503 });

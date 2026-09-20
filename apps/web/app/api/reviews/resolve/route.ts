@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { normalizePartyKey } from "@netting/core";
-import { getStore } from "@/lib/store";
+import { getSessionStore, withSession } from "@/lib/store";
 
 /**
  * Resolve one review item.
@@ -14,7 +14,8 @@ export async function POST(request: Request) {
     action: "accept" | "map" | "keep" | "drop";
     value?: string;
   };
-  const store = getStore();
+  const session = await getSessionStore();
+  const store = session.store;
   const review = store.reviews.find((r) => r.id === id);
   if (!review) return NextResponse.json({ error: "Review not found" }, { status: 404 });
   const obligation = store.obligations.find((o) => o.id === review.obligationId);
@@ -56,5 +57,5 @@ export async function POST(request: Request) {
     obligation.reviewRequired = false;
     if (obligation.status === "quarantined") obligation.status = "pending";
   }
-  return NextResponse.json({ obligation, review });
+  return withSession(NextResponse.json({ obligation, review }), session);
 }

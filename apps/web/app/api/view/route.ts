@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { normalizePartyKey } from "@netting/core";
 import { getLedger, partyIdFor } from "@/lib/ledger";
-import { getStore } from "@/lib/store";
+import { getSessionStore, withSession } from "@/lib/store";
 
 /**
  * Subsidiary-scoped view: the privacy demonstration.
@@ -12,7 +12,8 @@ import { getStore } from "@/lib/store";
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const party = searchParams.get("party") ?? "";
-  const store = getStore();
+  const session = await getSessionStore();
+  const store = session.store;
   const key = normalizePartyKey(party);
 
   const obligations = store.obligations
@@ -59,12 +60,15 @@ export async function GET(request: Request) {
   }
 
   const peers = [...new Set(obligations.map((o) => o.counterparty))];
-  return NextResponse.json({
-    party,
-    obligations,
-    receipts,
-    verification,
-    // What this party must NOT see: every other counterparty relationship.
-    hiddenFromThisParty: peers.length,
-  });
+  return withSession(
+    NextResponse.json({
+      party,
+      obligations,
+      receipts,
+      verification,
+      // What this party must NOT see: every other counterparty relationship.
+      hiddenFromThisParty: peers.length,
+    }),
+    session,
+  );
 }

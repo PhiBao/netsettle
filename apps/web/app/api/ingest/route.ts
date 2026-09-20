@@ -10,7 +10,7 @@ import {
 } from "@netting/typesafe-judgments";
 import { ledgerStatus } from "@/lib/ledger";
 import { DEMO_CSV, DEMO_ROSTER } from "@/lib/seed";
-import { getStore, resetStore, type ReviewItem } from "@/lib/store";
+import { getSessionStore, resetSessionStore, withSession, type ReviewItem } from "@/lib/store";
 
 function getAsk(): AskFn | undefined {
   if (!process.env.TYPESAFE_API_KEY) return undefined;
@@ -27,7 +27,8 @@ export async function POST(request: Request) {
     demo?: boolean;
     roster?: string[];
   };
-  const store = resetStore();
+  const session = await getSessionStore();
+  const store = resetSessionStore(session.sessionId);
   resetObligationCounter();
   resetProposalCounter();
   store.roster = body.roster?.length ? body.roster : DEMO_ROSTER;
@@ -161,5 +162,5 @@ export async function POST(request: Request) {
   );
   store.batchPriority = { score: priority.value, confidence: priority.confidence, source: priority.source };
 
-  return NextResponse.json({ ...store, ledger: ledgerStatus() });
+  return withSession(NextResponse.json({ ...store, ledger: ledgerStatus() }), session);
 }

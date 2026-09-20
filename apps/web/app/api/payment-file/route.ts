@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildPaymentRows, paymentRowsToCsv, valueDateFor } from "@netting/core";
-import { getStore } from "@/lib/store";
+import { getSessionStore, withSession } from "@/lib/store";
 
 /**
  * Bank-actionable artifact for a settled proposal: one CSV row per residual
@@ -11,7 +11,8 @@ import { getStore } from "@/lib/store";
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const proposalId = searchParams.get("proposalId") ?? "";
-  const store = getStore();
+  const session = await getSessionStore();
+  const store = session.store;
   const proposal = store.proposals.find((p) => p.id === proposalId);
   if (!proposal) return NextResponse.json({ error: "Proposal not found" }, { status: 404 });
   if (proposal.status !== "settled" || proposal.receipts.length === 0) {
@@ -29,11 +30,14 @@ export async function GET(request: Request) {
     dueDates.length > 0 ? valueDateFor(dueDates) : new Date().toISOString().slice(0, 10),
   );
   const csv = paymentRowsToCsv(rows);
-  return new NextResponse(csv, {
-    status: 200,
-    headers: {
-      "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="netting-${proposal.id}-payment.csv"`,
-    },
-  });
+  return withSession(
+    new NextResponse(csv, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="netting-${proposal.id}-payment.csv"`,
+      },
+    }),
+    session,
+  );
 }
