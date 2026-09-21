@@ -47,6 +47,15 @@ ledger live per party so this claim is checkable, not asserted.
 | `apps/web` | Treasury workflow UI: ingest → review → propose → approve → settle → receipts, plus per-subsidiary privacy views. |
 | `scripts/` | `bootstrap-sandbox.sh` (fresh demo env), `sync-ledger.sh` (rebuild → upload → vet → point app at new package id). |
 
+## Validation
+
+Problem and budget evidence is compiled in [VALIDATION.md](./VALIDATION.md) —
+treasury surveys (Modern Treasury/Harris, KPMG, EACT, Deluxe), quantified
+netting ROI (up to 70% fewer cross-border transfers), named treasurer quotes,
+and an explicit list of what remains unvalidated. No fabricated interviews:
+direct operator conversations are the first post-hackathon task, with an
+outreach kit included in the dossier.
+
 ## Run the demo
 
 Prerequisites: Docker? No — just `dpm`, Node 22, pnpm. The sandbox is a single
