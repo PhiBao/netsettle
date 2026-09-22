@@ -1,9 +1,11 @@
 # Shared DevNet runbook — HackCanton Season 3 node
 
 Noders provides a **shared DevNet sandbox** for Season 3 teams so you build
-logic, not infrastructure. **Status 2026-09-23: LIVE — full demo flow settled
-on the shared node** (EUR €70k→€30k + USD $312k→$40k, receipts + pain.001
-verified, SG privacy view ledger-confirmed). Details below.
+logic, not infrastructure. **Status 2026-09-23: FULLY LIVE — the public demo
+(https://100-30-125-235.nip.io) runs against the shared node** with
+auto-refreshing offline tokens (EUR €70k→€30k + USD $312k→$40k settled through
+the public site, receipts + pain.001 verified). Local sandbox retired from the
+host. Details below.
 
 Source: Season 3 materials (official) + live endpoint probes.
 
