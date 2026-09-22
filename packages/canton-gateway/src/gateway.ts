@@ -8,12 +8,18 @@
  * contract IDs parsed from the returned transaction.
  */
 
+export type TokenProvider = () => Promise<string>;
+
 export interface GatewayConfig {
   baseUrl: string;
   packageId: string;
   userId: string;
-  /** Bearer token for authenticated participants (e.g. shared DevNet). */
-  authToken?: string;
+  /**
+   * Bearer token for authenticated participants (e.g. shared DevNet), or a
+   * provider for auto-refreshing tokens. Static strings suit short sessions;
+   * providers suit long-lived deployments backed by a refresh token.
+   */
+  authToken?: string | TokenProvider;
 }
 
 export interface ObligationArgs {
@@ -99,16 +105,20 @@ export class CantonGateway {
     return templateId(this.config.packageId, module, name);
   }
 
-  private headers(): Record<string, string> {
+  private async headers(): Promise<Record<string, string>> {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (this.config.authToken) headers["Authorization"] = `Bearer ${this.config.authToken}`;
+    const token =
+      typeof this.config.authToken === "function"
+        ? await this.config.authToken()
+        : this.config.authToken;
+    if (token) headers["Authorization"] = `Bearer ${token}`;
     return headers;
   }
 
   private async get<T>(path: string): Promise<T> {
     let res: Response;
     try {
-      res = await fetch(`${this.config.baseUrl}${path}`, { headers: this.headers() });
+      res = await fetch(`${this.config.baseUrl}${path}`, { headers: await this.headers() });
     } catch (err) {
       throw new GatewayError(`unreachable: ${String(err)}`, path, 0);
     }
@@ -124,7 +134,7 @@ export class CantonGateway {
     try {
       res = await fetch(`${this.config.baseUrl}${path}`, {
         method: "POST",
-        headers: this.headers(),
+        headers: await this.headers(),
         body: JSON.stringify(body),
       });
     } catch (err) {

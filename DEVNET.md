@@ -24,20 +24,28 @@ Source: Season 3 materials (official) + live endpoint probes.
 Shared node = shared ledger. **No sensitive data.** Our demo parties and
 contracts are visible to every team on the node.
 
-## Step 1 — Get a token (needs your platform login, 2 minutes)
+## Step 1 — Get tokens (needs your platform login, 2 minutes)
 
-Direct password grants are disabled on the wallet client (probed:
-`unauthorized_client`), so the token comes from a browser login:
+Password grants are disabled on the *wallet* client, but the official guide
+documents a working grant on the **web-app client** with `offline_access`:
 
-1. Open the wallet and sign in with your HackCanton platform account:
-   `https://wallet.validator.hackcanton-01.devnet.naas.noders.services`
-2. Open DevTools → Application → Local Storage → copy the access token.
-3. Tokens are short-lived — run the deploy script immediately after copying.
+```bash
+curl -sS 'https://keycloak.naas.noders.services/realms/noders-appsfactory/protocol/openid-connect/token' \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  --data-urlencode 'grant_type=password' \
+  --data-urlencode 'client_id=web-app-ui-hackcanton-01-devnet' \
+  --data-urlencode 'username=<YOUR_PLATFORM_EMAIL>' \
+  --data-urlencode 'password=<YOUR_PLATFORM_PASSWORD>' \
+  --data-urlencode 'scope=openid daml_ledger_api offline_access' > tokens.json
+```
 
-Auth config (extracted from the wallet's public config, verified):
-`authority=https://keycloak.naas.noders.services/realms/noders-appsfactory`,
-`client_id=wallet-web-ui-hackcanton-01-devnet`,
-`audience=https://hackcanton-01.devnet.naas.noders.services`.
+- `access_token`: valid 3 hours, sent as `Authorization: Bearer` to the node.
+- `refresh_token`: **offline token, no fixed expiry** — valid until revoked or
+  unused too long. This is what makes DevNet fully live: the app auto-refreshes
+  the access token forever (see below). Guard it like a password.
+
+For a quick browser-sourced token instead: wallet → DevTools → Local Storage.
+That access token works but dies in hours with no refresh path.
 
 ## Step 2 — Upload via Console UI; vetting + parties need the node operator
 
@@ -94,6 +102,27 @@ and paste the party IDs into `.env.devnet` by hand.
 Point a local app run at `.env.devnet` and walk ingest → settle → payment
 file. Do **not** repoint the public EC2 app — keep the judged demo on the
 reproducible local ledger unless the DevNet run is fully green.
+
+## Staying live: auto-refresh
+
+The gateway accepts a token provider backed by `TokenManager`
+(`packages/canton-gateway/src/tokenRefresh.ts`): cached access token,
+pre-emptive refresh 60s before expiry, rotation tracking, optional
+persistence. The web app wires it when `CANTON_REFRESH_TOKEN` is set
+(`apps/web/lib/ledger.ts`):
+
+| Variable | Purpose |
+|---|---|
+| `CANTON_REFRESH_TOKEN` | Offline refresh token from Step 1. Enables indefinite access. |
+| `CANTON_OIDC_TOKEN_URL` | Override (defaults to the DevNet realm). |
+| `CANTON_OIDC_CLIENT_ID` | Override (defaults to `web-app-ui-hackcanton-01-devnet`). |
+| `CANTON_REFRESH_TOKEN_FILE` | Optional path where rotated refresh tokens persist across restarts. |
+| `CANTON_API_TOKEN` | Fallback: static access token for short sessions. |
+
+Refresh tokens are password-equivalent: server-side only (SSM/env),
+never committed, never sent to browsers, never sent to the ledger —
+only to the token endpoint. If refresh fails with "Token is not active",
+re-run the Step 1 password grant.
 
 ## What DevNet buys us (and what it doesn't)
 

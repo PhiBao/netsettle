@@ -1,4 +1,32 @@
-import { CantonGateway } from "@netting/canton-gateway";
+import { CantonGateway, TokenManager } from "@netting/canton-gateway";
+
+export const DEVNET_TOKEN_URL =
+  "https://keycloak.naas.noders.services/realms/noders-appsfactory/protocol/openid-connect/token";
+export const DEVNET_CLIENT_ID = "web-app-ui-hackcanton-01-devnet";
+
+let tokenManager: TokenManager | null = null;
+
+/**
+ * Long-lived DevNet access. When CANTON_REFRESH_TOKEN is set (offline refresh
+ * token from the password grant), the gateway auto-refreshes the 3-hour access
+ * token indefinitely. Otherwise falls back to the static CANTON_API_TOKEN.
+ * Secrets stay server-side; the browser never sees them.
+ */
+function authToken(): string | (() => Promise<string>) | undefined {
+  const refreshToken = process.env.CANTON_REFRESH_TOKEN;
+  if (refreshToken) {
+    if (!tokenManager) {
+      tokenManager = new TokenManager({
+        tokenUrl: process.env.CANTON_OIDC_TOKEN_URL ?? DEVNET_TOKEN_URL,
+        clientId: process.env.CANTON_OIDC_CLIENT_ID ?? DEVNET_CLIENT_ID,
+        refreshToken,
+        persistPath: process.env.CANTON_REFRESH_TOKEN_FILE || undefined,
+      });
+    }
+    return () => tokenManager!.getToken();
+  }
+  return process.env.CANTON_API_TOKEN || undefined;
+}
 
 export class LedgerNotConfiguredError extends Error {
   constructor() {
@@ -38,7 +66,7 @@ export function getLedger(): LedgerConfig {
       baseUrl,
       packageId,
       userId: process.env.CANTON_USER_ID ?? "netting-app",
-      authToken: process.env.CANTON_API_TOKEN || undefined,
+      authToken: authToken(),
     }),
     operatorParty,
     partyMap,
