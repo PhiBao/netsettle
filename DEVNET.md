@@ -39,16 +39,23 @@ Auth config (extracted from the wallet's public config, verified):
 `client_id=wallet-web-ui-hackcanton-01-devnet`,
 `audience=https://hackcanton-01.devnet.naas.noders.services`.
 
-## Step 2 — Upload + vet via the Console UI (browser, 3 minutes)
+## Step 2 — Upload via Console UI; vetting needs the node operator
 
 Wallet API tokens are **read-only for package management** (probed 2026-09-22:
-403 on both `/v2/packages` and `/v2/dars`). DAR upload + vetting go through
-the Console with the same platform login:
+403 on `/v2/packages`, `/v2/dars`, and `/v2/package-vetting/update`).
+Status 2026-09-23: DAR uploaded via Console (package
+`d1b3b958…dee64f` confirmed on node), but **not vetted** — no vet action is
+visible in the Console UI, and the API refuses.
+
+Resolution path: ask Noders (Discord support/mentor channel) to vet package
+`netsettle` (`d1b3b958efb782a3cb5dfb28b9399bddc30178a576d2f0d5030a435de3dee64f`)
+on the shared node — one operator command. Draft ask below.
 
 1. Open `https://console.participant.hackcanton-01.devnet.naas.noders.services`
    and sign in.
-2. Upload `daml/.daml/dist/netsettle-0.1.0.dar`.
+2. Upload `daml/.daml/dist/netsettle-0.1.0.dar`. (Done 2026-09-23.)
 3. Vet package `netsettle` (uniquely named — no collisions with other teams).
+   (Blocked — needs operator.)
 
 ## Step 3 — One command does the rest
 
