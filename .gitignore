@@ -6,6 +6,7 @@ dist/
 *.log
 log/
 apps/web/.env*.local
+apps/web/.env.devnet
 /tmp/
 .DS_Store
 # Agent operating files — not part of the submission

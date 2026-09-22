@@ -24,46 +24,41 @@ Source: Season 3 materials (official) + live endpoint probes.
 Shared node = shared ledger. **No sensitive data.** Our demo parties and
 contracts are visible to every team on the node.
 
-## Step 1 — Get a token (needs your platform login)
+## Step 1 — Get a token (needs your platform login, 2 minutes)
+
+Direct password grants are disabled on the wallet client (probed:
+`unauthorized_client`), so the token comes from a browser login:
+
+1. Open the wallet and sign in with your HackCanton platform account:
+   `https://wallet.validator.hackcanton-01.devnet.naas.noders.services`
+2. Open DevTools → Application → Local Storage → copy the access token.
+3. Tokens are short-lived — run the deploy script immediately after copying.
+
+Auth config (extracted from the wallet's public config, verified):
+`authority=https://keycloak.naas.noders.services/realms/noders-appsfactory`,
+`client_id=wallet-web-ui-hackcanton-01-devnet`,
+`audience=https://hackcanton-01.devnet.naas.noders.services`.
+
+## Step 2 — One command does the rest
 
 ```bash
-export TOKEN=$(curl -s -X POST \
-  "https://keycloak.naas.noders.services/realms/noders-appsfactory/protocol/openid-connect/token" \
-  -d "grant_type=password" \
-  -d "client_id=<from the HackMD guide>" \
-  -d "username=<your HackCanton platform email>" \
-  -d "password=<your HackCanton platform password>" \
-  -d "audience=https://hackcanton-01.devnet.naas.noders.services" \
-  | python3 -c "import json,sys; print(json.load(sys.stdin)['access_token'])")
+TOKEN=<paste> bash scripts/devnet-deploy.sh
 ```
 
-The exact `client_id` is in the official HackMD guide
-(Canton DevNet Quickstart — HackCanton shared node), which was unreachable
-from my network. Open it from your browser; everything else here is verified.
-
-## Step 2 — Upload + vet the DAR
-
-```bash
-BASE=https://ledger-api-json.participant.hackcanton-01.devnet.naas.noders.services
-curl -s -X POST "$BASE/v2/packages" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/octet-stream" \
-  --data-binary @daml/.daml/dist/daml-0.0.1.dar
-# then vet (same shape as scripts/sync-ledger.sh, with the Authorization header)
-```
+The script uploads the DAR, vets our uniquely-named `netsettle` package (no
+collisions with other teams on the shared node), allocates operator + 4
+subsidiaries over gRPC, and writes `apps/web/.env.devnet` (git-ignored).
 
 Note: our DAR builds under SDK 3.5.1; the node runs 3.5.17. Same 3.5 line —
-expected compatible; the upload response will confirm or deny.
+expected compatible; the upload response will confirm or deny. If party
+allocation over gRPC fights TLS, fall back to allocating via the Console UI
+and paste the party IDs into `.env.devnet` by hand.
 
-## Step 3 — Allocate parties and run the flow
+## Step 3 — Run the flow against DevNet (staging only)
 
-Same as local, pointed at `$BASE` with `Authorization: Bearer $TOKEN`:
-
-1. Allocate operator + 4 subsidiaries (Daml Script or Console).
-2. Set `CANTON_JSON_API_URL=$BASE`, `CANTON_PACKAGE_ID=<uploaded id>`,
-   `CANTON_PARTY_MAP_JSON={...}` on a staging deploy (do **not** repoint the
-   public EC2 app — keep the judged demo on the reproducible local ledger).
-3. Ingest → review → propose → approve → settle → payment file.
+Point a local app run at `.env.devnet` and walk ingest → settle → payment
+file. Do **not** repoint the public EC2 app — keep the judged demo on the
+reproducible local ledger unless the DevNet run is fully green.
 
 ## What DevNet buys us (and what it doesn't)
 
