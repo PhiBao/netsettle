@@ -25,17 +25,32 @@ AUTH=(-H "Authorization: Bearer $TOKEN")
 DAR="$ROOT/daml/.daml/dist/netsettle-0.1.0.dar"
 [ -f "$DAR" ] || { echo "Build the DAR first: (cd daml && dpm build)"; exit 1; }
 
-echo "== upload DAR =="
-curl -sf -X POST "$BASE/v2/packages" "${AUTH[@]}" \
-  -H "Content-Type: application/octet-stream" \
-  --data-binary "@$DAR" > /dev/null
 PKG=$(cd "$ROOT/daml" && dpm inspect-dar "$DAR" 2>/dev/null \
   | grep -oE '^netsettle-0\.1\.0-[0-9a-f]{64}' | head -1 | sed 's/^netsettle-0.1.0-//')
 [ -n "$PKG" ] || { echo "Could not determine package id"; exit 1; }
 echo "package: $PKG"
 
-echo "== vet package =="
-python3 - "$BASE" "$PKG" "$TOKEN" <<'EOF'
+# Wallet tokens are read-only for package management (403 on upload/vet).
+# The DAR must be uploaded + vetted once via the Console UI (same platform
+# login). Re-run with UPLOADED=1 VETTED=1 afterwards to continue here.
+if [ "${UPLOADED:-0}" != "1" ]; then
+  echo "== upload DAR =="
+  if curl -sf -X POST "$BASE/v2/packages" "${AUTH[@]}" \
+    -H "Content-Type: application/octet-stream" \
+    --data-binary "@$DAR" > /dev/null; then
+    echo "uploaded"
+  else
+    echo "API upload refused (expected on the shared node)."
+    echo "Upload daml/.daml/dist/netsettle-0.1.0.dar via the Console UI:"
+    echo "  https://console.participant.hackcanton-01.devnet.naas.noders.services"
+    echo "Then re-run: UPLOADED=1 TOKEN=\$TOKEN bash scripts/devnet-deploy.sh"
+    exit 1
+  fi
+fi
+
+if [ "${VETTED:-0}" != "1" ]; then
+  echo "== vet package =="
+  if python3 - "$BASE" "$PKG" "$TOKEN" <<'EOF'
 import json, sys, urllib.request, urllib.error
 base, pkg, token = sys.argv[1], sys.argv[2], sys.argv[3]
 def post(path, body):
@@ -51,6 +66,14 @@ post("/v2/package-vetting/update",
      {"changes": [{"operation": {"Vet": {"value": {"packages": [{"packageId": pkg}]}}}}]})
 print("vetted", pkg[:12])
 EOF
+  then
+    echo "vet ok"
+  else
+    echo "API vetting refused. Vet package $PKG via the Console UI, then re-run:"
+    echo "  UPLOADED=1 VETTED=1 TOKEN=\$TOKEN bash scripts/devnet-deploy.sh"
+    exit 1
+  fi
+fi
 
 echo "== allocate parties (Daml Script over gRPC) =="
 cat > /tmp/netsettle-devnet-participant.json <<EOF

@@ -39,22 +39,34 @@ Auth config (extracted from the wallet's public config, verified):
 `client_id=wallet-web-ui-hackcanton-01-devnet`,
 `audience=https://hackcanton-01.devnet.naas.noders.services`.
 
-## Step 2 — One command does the rest
+## Step 2 — Upload + vet via the Console UI (browser, 3 minutes)
+
+Wallet API tokens are **read-only for package management** (probed 2026-09-22:
+403 on both `/v2/packages` and `/v2/dars`). DAR upload + vetting go through
+the Console with the same platform login:
+
+1. Open `https://console.participant.hackcanton-01.devnet.naas.noders.services`
+   and sign in.
+2. Upload `daml/.daml/dist/netsettle-0.1.0.dar`.
+3. Vet package `netsettle` (uniquely named — no collisions with other teams).
+
+## Step 3 — One command does the rest
 
 ```bash
-TOKEN=<paste> bash scripts/devnet-deploy.sh
+UPLOADED=1 VETTED=1 TOKEN=<paste> bash scripts/devnet-deploy.sh
 ```
 
-The script uploads the DAR, vets our uniquely-named `netsettle` package (no
-collisions with other teams on the shared node), allocates operator + 4
-subsidiaries over gRPC, and writes `apps/web/.env.devnet` (git-ignored).
+The script allocates operator + 4 subsidiaries over gRPC and writes
+`apps/web/.env.devnet` (git-ignored). If gRPC allocation also hits permission
+errors, allocate via the Console UI and paste the party IDs into `.env.devnet`
+by hand (format in `apps/web/.env.local.example`).
 
 Note: our DAR builds under SDK 3.5.1; the node runs 3.5.17. Same 3.5 line —
 expected compatible; the upload response will confirm or deny. If party
 allocation over gRPC fights TLS, fall back to allocating via the Console UI
 and paste the party IDs into `.env.devnet` by hand.
 
-## Step 3 — Run the flow against DevNet (staging only)
+## Step 4 — Run the flow against DevNet (staging only)
 
 Point a local app run at `.env.devnet` and walk ingest → settle → payment
 file. Do **not** repoint the public EC2 app — keep the judged demo on the
