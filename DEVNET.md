@@ -51,11 +51,15 @@ Wallet API tokens on the shared node are **heavily restricted** (probed
 | Vet package (`/v2/package-vetting/update`) | ❌ 403 |
 | Allocate party (Daml Script over gRPC+TLS) | ❌ `PERMISSION_DENIED` |
 
-Status: DAR uploaded via Console (package `d1b3b958…dee64f` confirmed on
-node), but **not vetted**, and we have only our login's `primaryParty` —
+Status: DAR uploaded via Console (package
+`d1b3b958…dee64f` confirmed on node), but **not vetted**, and we have only our login's `primaryParty` —
 no operator + 4 subsidiaries yet. Creating parties ourselves is impossible
 with this token, and wouldn't help anyway (vetting is per-participant,
 not per-party).
+
+Funding: ~900 CC obtained on our party (covers all demo traffic fees with
+orders of magnitude to spare — one future blocker pre-solved). Once the
+operator party exists, a small CC transfer to it covers submission fees.
 
 Resolution path: one ask to Noders (Discord support/mentor channel) covers
 everything — vet the package AND allocate 5 parties (or grant our user
