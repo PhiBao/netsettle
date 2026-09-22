@@ -39,22 +39,34 @@ Auth config (extracted from the wallet's public config, verified):
 `client_id=wallet-web-ui-hackcanton-01-devnet`,
 `audience=https://hackcanton-01.devnet.naas.noders.services`.
 
-## Step 2 — Upload via Console UI; vetting needs the node operator
+## Step 2 — Upload via Console UI; vetting + parties need the node operator
 
-Wallet API tokens are **read-only for package management** (probed 2026-09-22:
-403 on `/v2/packages`, `/v2/dars`, and `/v2/package-vetting/update`).
-Status 2026-09-23: DAR uploaded via Console (package
-`d1b3b958…dee64f` confirmed on node), but **not vetted** — no vet action is
-visible in the Console UI, and the API refuses.
+Wallet API tokens on the shared node are **heavily restricted** (probed
+2026-09-23, all with a valid token):
 
-Resolution path: ask Noders (Discord support/mentor channel) to vet package
-`netsettle` (`d1b3b958efb782a3cb5dfb28b9399bddc30178a576d2f0d5030a435de3dee64f`)
-on the shared node — one operator command. Draft ask below.
+| Action | Result |
+|---|---|
+| Read packages / ledger-end / vetting list / whoami | ✅ works |
+| Upload DAR (`/v2/packages`, `/v2/dars`) | ❌ 403 |
+| Vet package (`/v2/package-vetting/update`) | ❌ 403 |
+| Allocate party (Daml Script over gRPC+TLS) | ❌ `PERMISSION_DENIED` |
+
+Status: DAR uploaded via Console (package `d1b3b958…dee64f` confirmed on
+node), but **not vetted**, and we have only our login's `primaryParty` —
+no operator + 4 subsidiaries yet. Creating parties ourselves is impossible
+with this token, and wouldn't help anyway (vetting is per-participant,
+not per-party).
+
+Resolution path: one ask to Noders (Discord support/mentor channel) covers
+everything — vet the package AND allocate 5 parties (or grant our user
+party-allocation rights). Draft ask below.
 
 1. Open `https://console.participant.hackcanton-01.devnet.naas.noders.services`
    and sign in.
 2. Upload `daml/.daml/dist/netsettle-0.1.0.dar`. (Done 2026-09-23.)
 3. Vet package `netsettle` (uniquely named — no collisions with other teams).
+   (Blocked — needs operator.)
+4. Allocate 5 parties (operator + 4 subsidiaries) or equivalent rights.
    (Blocked — needs operator.)
 
 ## Step 3 — One command does the rest
