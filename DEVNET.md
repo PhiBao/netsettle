@@ -1,9 +1,9 @@
 # Shared DevNet runbook — HackCanton Season 3 node
 
 Noders provides a **shared DevNet sandbox** for Season 3 teams so you build
-logic, not infrastructure. Verified 2026-09-22: JSON Ledger API responds on
-Canton 3.5.17; Keycloak OIDC discovery reachable. Authenticated steps below
-need **your HackCanton platform email + password** — I could not execute those.
+logic, not infrastructure. **Status 2026-09-23: LIVE — full demo flow settled
+on the shared node** (EUR €70k→€30k + USD $312k→$40k, receipts + pain.001
+verified, SG privacy view ledger-confirmed). Details below.
 
 Source: Season 3 materials (official) + live endpoint probes.
 

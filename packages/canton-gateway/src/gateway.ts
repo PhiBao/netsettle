@@ -12,6 +12,8 @@ export interface GatewayConfig {
   baseUrl: string;
   packageId: string;
   userId: string;
+  /** Bearer token for authenticated participants (e.g. shared DevNet). */
+  authToken?: string;
 }
 
 export interface ObligationArgs {
@@ -97,12 +99,32 @@ export class CantonGateway {
     return templateId(this.config.packageId, module, name);
   }
 
+  private headers(): Record<string, string> {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (this.config.authToken) headers["Authorization"] = `Bearer ${this.config.authToken}`;
+    return headers;
+  }
+
+  private async get<T>(path: string): Promise<T> {
+    let res: Response;
+    try {
+      res = await fetch(`${this.config.baseUrl}${path}`, { headers: this.headers() });
+    } catch (err) {
+      throw new GatewayError(`unreachable: ${String(err)}`, path, 0);
+    }
+    if (!res.ok) {
+      const text = await res.text();
+      throw new GatewayError(`${path} failed: ${text.slice(0, 500)}`, path, res.status);
+    }
+    return (await res.json()) as T;
+  }
+
   private async post<T>(path: string, body: unknown): Promise<T> {
     let res: Response;
     try {
       res = await fetch(`${this.config.baseUrl}${path}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: this.headers(),
         body: JSON.stringify(body),
       });
     } catch (err) {
@@ -198,10 +220,7 @@ export class CantonGateway {
     party: string,
     templateName: "Obligation" | "Approval" | "NettingProposal" | "SettlementReceipt",
   ): Promise<Array<{ contractId: string; payload: Json }>> {
-    const end = await fetch(`${this.config.baseUrl}/v2/state/ledger-end`).then((r) => {
-      if (!r.ok) throw new GatewayError("ledger-end failed", "ledger-end", r.status);
-      return r.json() as Promise<{ offset: number }>;
-    });
+    const end = await this.get<{ offset: number }>("/v2/state/ledger-end");
     // Wildcard read filtered client-side by template suffix: package ids change
     // on every DAR rebuild, while `:Netting:<Template>` suffixes are stable.
     // (Server-side TemplateFilter requires package-name references, which the

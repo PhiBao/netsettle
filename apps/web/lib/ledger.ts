@@ -38,6 +38,7 @@ export function getLedger(): LedgerConfig {
       baseUrl,
       packageId,
       userId: process.env.CANTON_USER_ID ?? "netting-app",
+      authToken: process.env.CANTON_API_TOKEN || undefined,
     }),
     operatorParty,
     partyMap,
