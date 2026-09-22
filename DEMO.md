@@ -20,11 +20,13 @@ Load demo dataset. Point out:
 
 ## 1:15 Proposal (60s)
 
-Create netting proposal. The hero numbers:
+Create netting proposals — one per currency bucket. The hero numbers:
 
-- **8 rows ingested → 6 eligible → gross $312,000 → net $40,000 in 3 transfers.**
-- Residuals listed with from/to/amount. Proposal contract ID on screen — this
-  is a real ledger contract, not a mock.
+- **USD: gross $312,000 → net $40,000 in 3 transfers.**
+- **EUR: gross €70,000 → net €30,000 in 1 transfer.** No FX oracle, no invented
+  rates — like offsets like.
+- Residuals listed with from/to/amount. Proposal contract IDs on screen — real
+  ledger contracts, not mocks.
 
 ## 2:15 Approvals + settlement (90s)
 

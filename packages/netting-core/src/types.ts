@@ -22,6 +22,9 @@ export interface Obligation {
   status: ObligationStatus;
   reviewRequired: boolean;
   reviewReasons: string[];
+  /** Set while a subsidiary disputes the row; blocks proposal eligibility. */
+  disputeNote?: string;
+  disputeRaisedAt?: string;
 }
 
 export interface IngestIssue {

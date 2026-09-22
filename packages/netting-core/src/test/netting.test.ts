@@ -4,10 +4,11 @@ import {
   ingestCsv,
   resetObligationCounterForTests,
 } from "../ingest.js";
-import { computeNetPositions, computeResiduals, findCycle, summarizeNetting } from "../netting.js";
+import { computeNetPositions, computeResiduals, findCycle, groupByCurrency, summarizeNetting } from "../netting.js";
 import {
   approveProposal,
   createProposal,
+  isProposalEligible,
   resetProposalCounterForTests,
   settlementBlockers,
 } from "../proposals.js";
@@ -76,6 +77,24 @@ describe("netting", () => {
     assert.match(obligations[1].reviewReasons.join(" "), /ifferent reference/);
   });
 
+  it("partitions obligations into single-currency buckets", () => {
+    resetObligationCounterForTests();
+    const { obligations } = ingestCsv(
+      "debtor,creditor,amount,currency,due_date,reference\n" +
+        "Acme DE,Acme FR,100000,USD,2026-10-31,INV-001\n" +
+        "Acme DE,Acme FR,50000,EUR,2026-10-31,INV-101\n" +
+        "Acme FR,Acme DE,20000,EUR,2026-10-31,INV-102\n",
+    );
+    const buckets = groupByCurrency(obligations);
+    assert.deepEqual([...buckets.keys()], ["EUR", "USD"]);
+    assert.equal(buckets.get("EUR")!.length, 2);
+    // Each bucket nets independently.
+    const eur = summarizeNetting(buckets.get("EUR")!);
+    assert.equal(eur.grossMinor, "7000000");
+    assert.equal(eur.netMovedMinor, "3000000");
+    assert.equal(eur.residualCount, 1);
+  });
+
   it("quarantines exact duplicates", () => {
     resetObligationCounterForTests();
     const { obligations } = ingestCsv(`${SEED_CSV}Acme DE,Acme FR,100000,USD,2026-10-31,INV-001,Goods\n`);
@@ -102,6 +121,16 @@ describe("proposals", () => {
     p = approveProposal(p, "ACME SG", "Acme SG", "2026-10-01T00:00:00Z");
     assert.equal(p.status, "ready");
     assert.deepEqual(settlementBlockers(p, "2026-10-01T00:00:00Z"), []);
+  });
+
+  it("excludes disputed obligations from proposals", () => {
+    const obligations = seed();
+    obligations[0].disputeNote = "Amount contested by creditor";
+    assert.equal(isProposalEligible(obligations[0]), false);
+    assert.equal(isProposalEligible(obligations[1]), true);
+    const proposal = createProposal(obligations, { expiresAt: "2026-11-30T00:00:00Z" });
+    assert.ok(!proposal.obligationIds.includes(obligations[0].id));
+    assert.ok(proposal.obligationIds.includes(obligations[1].id));
   });
 
   it("expires proposals past their deadline", () => {

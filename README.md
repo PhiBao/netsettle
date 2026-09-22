@@ -10,8 +10,10 @@ against the subsidiary roster, compresses offsetting cycles, collects
 per-subsidiary approvals, and settles the residual in **one atomic Canton
 transaction** — with each subsidiary seeing only its own legs.
 
-Demo: **8 payables rows ingested → 6 eligible → $312,000 gross compressed to $40,000 net in 3 transfers**
-(one near-duplicate dropped in review, one unknown counterparty excluded).
+Demo: **10 payables rows ingested → 8 eligible across two currency buckets**
+(one near-duplicate dropped in review, one unknown counterparty excluded):
+USD bucket $312,000 gross → $40,000 net in 3 transfers; EUR bucket €70,000
+gross → €30,000 net in 1 transfer. No FX conversion — like offsets like.
 
 ## Why Canton (and not a database)
 

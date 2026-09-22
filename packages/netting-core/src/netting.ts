@@ -92,6 +92,22 @@ export function summarizeNetting(obligations: Obligation[]): NettingSummary {
   };
 }
 
+/**
+ * Partition obligations into single-currency buckets. Netting math is
+ * per-currency (like obligations offset only like obligations); each bucket
+ * becomes its own proposal and its own atomic settlement. Cross-currency
+ * conversion is deliberately out of scope — no FX oracle, no invented rates.
+ */
+export function groupByCurrency<T extends Obligation>(obligations: T[]): Map<string, T[]> {
+  const buckets = new Map<string, T[]>();
+  for (const o of obligations) {
+    const list = buckets.get(o.currency) ?? [];
+    list.push(o);
+    buckets.set(o.currency, list);
+  }
+  return new Map([...buckets.entries()].sort(([a], [b]) => (a < b ? -1 : 1)));
+}
+
 /** Find one simple cycle for visualization/explanation. Returns party keys or null. */
 export function findCycle(obligations: Obligation[]): string[] | null {
   const edges = new Map<string, string[]>();

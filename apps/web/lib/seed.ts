@@ -9,4 +9,6 @@ Acme DE,Acme US,15000,USD,2026-10-31,INV-005,VAT settlement Q3
 Acme france,Acme SG,12000,USD,2026-10-31,INV-006,Consulting services
 Acme DE,Acme FR,100000,USD,2026-10-31,INV-001-R,Goods shipment Hamburg-Le Havre
 Globex Corp,Acme DE,5000,USD,2026-10-31,INV-007,Miscellaneous adjustment
+Acme DE,Acme FR,50000,EUR,2026-10-31,INV-101,Goods shipment Berlin-Lyon
+Acme FR,Acme DE,20000,EUR,2026-10-31,INV-102,Service credit note
 `;

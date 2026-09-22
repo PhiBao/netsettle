@@ -18,6 +18,7 @@ interface Obligation {
   status: string;
   reviewRequired: boolean;
   reviewReasons: string[];
+  disputeNote?: string;
 }
 
 interface Review {
@@ -43,6 +44,8 @@ export default function ReviewPage() {
   const [state, setState] = useState<State | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [disputing, setDisputing] = useState<string | null>(null);
+  const [disputeNote, setDisputeNote] = useState("");
 
   const refresh = () =>
     fetch("/api/state")
@@ -73,9 +76,33 @@ export default function ReviewPage() {
     }
   };
 
+  const dispute = async (obligationId: string, action: "raise" | "clear") => {
+    setBusy(obligationId);
+    setError(null);
+    try {
+      const res = await fetch("/api/disputes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ obligationId, action, note: disputeNote }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Dispute failed");
+      setDisputing(null);
+      setDisputeNote("");
+      await refresh();
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setBusy(null);
+    }
+  };
+
   if (!state) return <main className="muted">Loading…</main>;
   const open = state.reviews.filter((r) => !r.resolved);
-  const eligible = state.obligations.filter((o) => o.status === "pending" && !o.reviewRequired);
+  const eligible = state.obligations.filter(
+    (o) => o.status === "pending" && !o.reviewRequired && !o.disputeNote,
+  );
+  const disputedCount = state.obligations.filter((o) => o.disputeNote).length;
 
   return (
     <main>
@@ -87,7 +114,8 @@ export default function ReviewPage() {
       <h1>Review what the machine wasn&rsquo;t sure about.</h1>
       <p className="lede">
         {state.obligations.length} obligations ingested · {open.length} open reviews ·{" "}
-        {eligible.length} eligible for netting.
+        {eligible.length} eligible for netting
+        {disputedCount > 0 && <> · {disputedCount} disputed</>}.
       </p>
       {state.batchPriority && (
         <div className="card">
@@ -120,11 +148,43 @@ export default function ReviewPage() {
                   {o.reviewRequired && <span className="tag warn">needs review</span>}
                   {o.status === "quarantined" && <span className="tag bad">quarantined</span>}
                   {o.status === "rejected" && <span className="tag bad">dropped</span>}
+                  {o.disputeNote && <span className="tag bad" title={o.disputeNote}>disputed</span>}
                 </td>
                 <td className="num">{formatMinor(o.amountMinor, o.currency)}</td>
                 <td className="muted small">{o.reference}</td>
                 <td className="muted small">{o.kind ?? "—"}</td>
-                <td className="muted small">{o.status}</td>
+                <td className="muted small">
+                  {o.disputeNote ? (
+                    <span className="row">
+                      <button className="btn" disabled={busy === o.id} onClick={() => dispute(o.id, "clear")}>
+                        Resolve
+                      </button>
+                    </span>
+                  ) : o.status === "pending" ? (
+                    disputing === o.id ? (
+                      <span className="row">
+                        <input
+                          value={disputeNote}
+                          onChange={(e) => setDisputeNote(e.target.value)}
+                          placeholder="Dispute note…"
+                          style={{ maxWidth: 180 }}
+                        />
+                        <button className="btn danger" disabled={busy === o.id || !disputeNote.trim()} onClick={() => dispute(o.id, "raise")}>
+                          Flag
+                        </button>
+                        <button className="btn" onClick={() => { setDisputing(null); setDisputeNote(""); }}>
+                          Cancel
+                        </button>
+                      </span>
+                    ) : (
+                      <button className="btn" onClick={() => setDisputing(o.id)}>
+                        Dispute
+                      </button>
+                    )
+                  ) : (
+                    o.status
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

@@ -13,11 +13,16 @@ export function resetProposalCounterForTests(): void {
   resetProposalCounter();
 }
 
+/** An obligation can enter a proposal only when clean, unreviewed, undisputed. */
+export function isProposalEligible(o: Obligation): boolean {
+  return o.status === "pending" && !o.reviewRequired && !o.disputeNote;
+}
+
 export function createProposal(
   obligations: Obligation[],
   options: { expiresAt: string; now?: string },
 ): NettingProposal {
-  const eligible = obligations.filter((o) => o.status === "pending" && !o.reviewRequired);
+  const eligible = obligations.filter(isProposalEligible);
   if (eligible.length === 0) throw new Error("No eligible obligations for a proposal");
   const summary = summarizeNetting(eligible);
   const parties = new Set<string>();
