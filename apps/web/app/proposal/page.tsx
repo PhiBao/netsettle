@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { formatMinor } from "@netting/core";
+import { Alert, Card, Kicker, Pill, Steps } from "../components/ui";
 
 interface Summary {
   currency: string;
@@ -34,10 +35,25 @@ interface ViewData {
   verification: { verified: boolean; obligations?: number; receipts?: number; reason?: string };
 }
 
-function heroAmount(minor: string, currency: string): { value: string; cur: string } {
+const btn =
+  "rounded-xl border border-line bg-panel2 px-4 py-2 text-sm font-semibold text-text transition hover:border-mint/60 disabled:opacity-45";
+const btnPrimary =
+  "rounded-xl bg-mint px-5 py-2.5 text-sm font-semibold text-mintdeep transition hover:brightness-110 disabled:opacity-45";
+
+function HeroNumber({ minor, currency, struck }: { minor: string; currency: string; struck?: boolean }) {
   const formatted = formatMinor(minor, currency);
   const match = /^(.*) ([A-Z]{3})$/.exec(formatted);
-  return match ? { value: match[1], cur: match[2] } : { value: formatted, cur: currency };
+  const value = match ? match[1] : formatted;
+  const cur = match ? match[2] : currency;
+  return (
+    <div
+      className={`tnum font-mono text-[34px] font-extrabold leading-none tracking-tight sm:text-[40px] ${
+        struck ? "text-faint line-through decoration-2" : "text-mint"
+      }`}
+    >
+      {value} <span className="text-base font-semibold text-faint">{cur}</span>
+    </div>
+  );
 }
 
 export default function ProposalPage() {
@@ -105,85 +121,96 @@ export default function ProposalPage() {
   };
 
   return (
-    <main>
-      <div className="steps">
-        <div className="step done">1 · Ingest obligations</div>
-        <div className="step done">2 · Review ambiguities</div>
-        <div className="step now">3 · Propose &amp; settle</div>
-      </div>
-      <h1>The month, compressed.</h1>
+    <main className="pt-10">
+      <Steps current={3} />
+      <Kicker>Atomic commit</Kicker>
+      <h1 className="font-display text-4xl font-bold tracking-tight sm:text-[44px]">
+        The month, compressed.
+      </h1>
 
       {proposals.length === 0 && (
-        <div className="card">
-          <p className="lede">
+        <Card className="mt-8">
+          <p className="max-w-xl text-[15px] leading-relaxed text-mist">
             No proposals yet. Eligible obligations are grouped by currency — one
             proposal per bucket, each settling atomically on the ledger.
           </p>
-          <button className="btn primary" disabled={busy} onClick={() => call("/api/proposals", {})}>
+          <button className={`${btnPrimary} mt-4`} disabled={busy} onClick={() => call("/api/proposals", {})}>
             {busy ? "Committing…" : "Create netting proposals"}
           </button>
-        </div>
+        </Card>
       )}
 
       {proposals.map((proposal) => {
-        const gross = heroAmount(proposal.summary.grossMinor, proposal.currency);
-        const net = heroAmount(proposal.summary.netMovedMinor, proposal.currency);
         const proposalBlockers = blockers[proposal.id];
+        const settled = proposal.status === "settled";
         return (
-          <section key={proposal.id}>
-            <h2>
-              {proposal.id} · {proposal.currency} bucket
-            </h2>
-            <div className="grid2">
-              <div className="card">
-                <div className="muted small">GROSS OBLIGATIONS · {proposal.summary.obligationCount} invoices</div>
-                <div className="hero-num small">
-                  {gross.value} <span className="cur">{gross.cur}</span>
-                </div>
-              </div>
-              <div className="card">
-                <div className="muted small">NET SETTLEMENT · {proposal.summary.residualCount} transfers</div>
-                <div className="hero-num savings">
-                  {net.value} <span className="cur">{net.cur}</span>
-                </div>
-              </div>
+          <section key={proposal.id} className="mt-12 first:mt-8">
+            <div className="mb-5 flex flex-wrap items-center gap-3">
+              <h2 className="font-display text-xl font-semibold">
+                {proposal.id} <span className="text-faint">· {proposal.currency} bucket</span>
+              </h2>
+              <Pill tone={settled ? "ok" : "neutral"}>{proposal.status}</Pill>
             </div>
 
-            <div className="card">
-              <span className="tag">{proposal.id}</span>
-              <span className={`tag ${proposal.status === "settled" ? "good" : ""}`}>{proposal.status}</span>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Card>
+                <div className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-faint">
+                  Gross · {proposal.summary.obligationCount} invoices
+                </div>
+                <HeroNumber minor={proposal.summary.grossMinor} currency={proposal.currency} struck />
+              </Card>
+              <Card className="!border-mint/25">
+                <div className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-faint">
+                  Net settlement · {proposal.summary.residualCount} transfers
+                </div>
+                <HeroNumber minor={proposal.summary.netMovedMinor} currency={proposal.currency} />
+              </Card>
+            </div>
+
+            <Card className="mt-4">
               {proposal.ledgerCid && (
-                <div style={{ marginTop: 8 }}>
-                  <span className="muted small">Proposal contract </span>
-                  <code className="cid">{proposal.ledgerCid}</code>
-                </div>
+                <p className="mb-4 text-[13px] text-faint">
+                  Proposal contract{" "}
+                  <code className="break-all font-mono text-[11px] text-mist">
+                    {proposal.ledgerCid}
+                  </code>
+                </p>
               )}
-              <h2 style={{ marginTop: 16 }}>Residual transfers</h2>
-              <table>
-                <thead>
-                  <tr><th>From → To</th><th style={{ textAlign: "right" }}>Amount</th></tr>
-                </thead>
-                <tbody>
-                  {proposal.summary.residuals.map((r, i) => (
-                    <tr key={i}>
-                      <td>{r.from} → {r.to}</td>
-                      <td className="num">{formatMinor(r.amountMinor, r.currency)}</td>
+              <h3 className="mb-3 font-display text-[15px] font-semibold">Residual transfers</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[480px] text-sm">
+                  <thead>
+                    <tr className="border-b border-line text-left text-xs uppercase tracking-[0.08em] text-faint">
+                      <th className="px-3 py-2.5 font-semibold">From → To</th>
+                      <th className="px-3 py-2.5 text-right font-semibold">Amount</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {proposal.summary.residuals.map((r, i) => (
+                      <tr key={i} className="border-b border-line/50 last:border-0">
+                        <td className="px-3 py-2.5">
+                          {r.from} <span className="text-faint">→</span> {r.to}
+                        </td>
+                        <td className="tnum whitespace-nowrap px-3 py-2.5 text-right font-mono">
+                          {formatMinor(r.amountMinor, r.currency)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
 
-            <div className="card">
-              <h2 style={{ marginTop: 0 }}>Subsidiary approvals</h2>
-              <div className="row">
+            <Card className="mt-4">
+              <h3 className="mb-4 font-display text-[15px] font-semibold">Subsidiary approvals</h3>
+              <div className="flex flex-wrap gap-2.5">
                 {proposal.requiredApprovals.map((key) => {
                   const approved = proposal.approvals.some((a) => a.partyKey === key);
                   return (
                     <button
                       key={key}
-                      className={`btn ${approved ? "" : "primary"}`}
-                      disabled={busy || approved || proposal.status === "settled"}
+                      className={approved ? btn : btnPrimary}
+                      disabled={busy || approved || settled}
                       onClick={() => call("/api/approve", { proposalId: proposal.id, partyKey: key }, proposal.id)}
                     >
                       {approved ? `✓ ${key}` : `Approve as ${key}`}
@@ -191,104 +218,145 @@ export default function ProposalPage() {
                   );
                 })}
               </div>
-              <p className="muted small">
+              <p className="mt-3 text-[13px] text-faint">
                 Each approval is its own ledger contract, signed by that subsidiary alone.
               </p>
-              <div className="row" style={{ marginTop: 12 }}>
+              <div className="mt-5">
                 <button
-                  className="btn primary"
-                  disabled={busy || proposal.status === "settled"}
+                  className={btnPrimary}
+                  disabled={busy || settled}
                   onClick={() => call("/api/settle", { proposalId: proposal.id }, proposal.id)}
                 >
                   {busy ? "Settling…" : "Execute atomic settlement"}
                 </button>
               </div>
               {proposalBlockers && (
-                <div className="err">
+                <Alert tone="error">
                   <strong>Settlement refused — ledger untouched.</strong>
-                  <ul>{proposalBlockers.map((b) => <li key={b}>{b}</li>)}</ul>
-                </div>
+                  <ul className="mt-1.5 list-disc pl-5">
+                    {proposalBlockers.map((b) => (
+                      <li key={b}>{b}</li>
+                    ))}
+                  </ul>
+                </Alert>
               )}
-              {proposal.status === "settled" && (
-                <div className="ok-box">
-                  Settled atomically. {proposal.receipts.length} receipts issued; obligations archived.
-                  <ul>
+              {settled && (
+                <Alert tone="success">
+                  <span className="font-semibold">
+                    Settled atomically. {proposal.receipts.length} receipts issued; obligations
+                    archived.
+                  </span>
+                  <ul className="mt-2 space-y-1.5">
                     {proposal.receipts.map((r) => (
-                      <li key={r.ledgerReference}>
+                      <li key={r.ledgerReference} className="tnum font-mono text-[13px]">
                         {r.transfer.from} → {r.transfer.to}:{" "}
                         {formatMinor(r.transfer.amountMinor, r.transfer.currency)}{" "}
-                        <code className="cid">{r.ledgerReference.slice(0, 24)}…</code>
+                        <code className="text-faint">{r.ledgerReference.slice(0, 24)}…</code>
                       </li>
                     ))}
                   </ul>
-                  <div className="row" style={{ marginTop: 12 }}>
-                    <a className="btn primary" href={`/api/payment-file?proposalId=${proposal.id}`} style={{ textDecoration: "none" }}>
+                  <div className="mt-4 flex flex-wrap gap-2.5">
+                    <a
+                      className={`${btnPrimary} no-underline`}
+                      href={`/api/payment-file?proposalId=${proposal.id}`}
+                    >
                       Payment file (CSV)
                     </a>
-                    <a className="btn primary" href={`/api/payment-file?proposalId=${proposal.id}&format=pain001`} style={{ textDecoration: "none" }}>
+                    <a
+                      className={`${btnPrimary} no-underline`}
+                      href={`/api/payment-file?proposalId=${proposal.id}&format=pain001`}
+                    >
                       pain.001 (ISO 20022)
                     </a>
                   </div>
-                  <p className="muted small" style={{ marginBottom: 0 }}>
+                  <p className="mb-0 mt-3 text-[13px] opacity-90">
                     Take these files to the bank: one row per residual transfer, each
                     referencing its ledger receipt contract — CSV for humans, pain.001
-                    for the bank upload. The atomic Canton transaction decided the
-                    netting outcome; these files carry that decision into the
-                    existing banking rail.
+                    for the bank upload.
                   </p>
-                </div>
+                </Alert>
               )}
-            </div>
+            </Card>
           </section>
         );
       })}
 
       {proposals.length > 0 && (
-        <div className="card">
-          <h2 style={{ marginTop: 0 }}>Privacy check — see what each subsidiary sees</h2>
-          <div className="row">
-            <select value={viewParty} onChange={(e) => loadView(e.target.value)} style={{ maxWidth: 240 }}>
-              {roster.map((name) => <option key={name} value={name}>{name}</option>)}
+        <Card className="mt-12">
+          <h2 className="font-display text-xl font-semibold">Privacy check</h2>
+          <p className="mb-4 mt-1 text-sm text-mist">
+            See what each subsidiary sees — verified live against the ledger.
+          </p>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <select
+              value={viewParty}
+              onChange={(e) => loadView(e.target.value)}
+              className="w-auto rounded-xl border border-line bg-ink px-3 py-2 font-mono text-[13px] text-text focus:border-mint/60 focus:outline-none"
+            >
+              {roster.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
             </select>
-            <button className="btn" onClick={() => viewParty && loadView(viewParty)}>Load view</button>
+            <button className={btn} onClick={() => viewParty && loadView(viewParty)}>
+              Load view
+            </button>
+            {view && (
+              <Pill tone={view.verification.verified ? "ok" : "bad"}>
+                {view.verification.verified
+                  ? `ledger-verified: ${view.verification.obligations} obligations · ${view.verification.receipts} receipts`
+                  : "ledger verification unavailable"}
+              </Pill>
+            )}
           </div>
           {view && (
-            <div style={{ marginTop: 12 }}>
-              <p>
-                <strong>{view.party}</strong> sees {view.obligations.length} obligation legs and{" "}
-                {view.receipts.length} receipts.{" "}
-                {view.verification.verified ? (
-                  <span className="tag good">
-                    ledger-verified: {view.verification.obligations} obligations · {view.verification.receipts} receipts visible
-                  </span>
-                ) : (
-                  <span className="tag bad">ledger verification unavailable</span>
-                )}
+            <div className="mt-4 overflow-x-auto">
+              <p className="mb-3 text-sm">
+                <strong>{view.party}</strong>{" "}
+                <span className="text-mist">
+                  sees {view.obligations.length} obligation legs and {view.receipts.length}{" "}
+                  receipts — nothing else.
+                </span>
               </p>
-              <table>
-                <thead><tr><th>Leg</th><th>Counterparty</th><th style={{ textAlign: "right" }}>Amount</th></tr></thead>
+              <table className="w-full min-w-[480px] text-sm">
+                <thead>
+                  <tr className="border-b border-line text-left text-xs uppercase tracking-[0.08em] text-faint">
+                    <th className="px-3 py-2.5 font-semibold">Leg</th>
+                    <th className="px-3 py-2.5 font-semibold">Counterparty</th>
+                    <th className="px-3 py-2.5 text-right font-semibold">Amount</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {view.obligations.map((o) => (
-                    <tr key={o.id}>
-                      <td className="muted small">{o.direction}</td>
-                      <td>{o.counterparty}</td>
-                      <td className="num">{formatMinor(o.amountMinor, o.currency)}</td>
+                    <tr key={o.id} className="border-b border-line/50">
+                      <td className="px-3 py-2.5 text-[13px] text-faint">{o.direction}</td>
+                      <td className="px-3 py-2.5">{o.counterparty}</td>
+                      <td className="tnum whitespace-nowrap px-3 py-2.5 text-right font-mono">
+                        {formatMinor(o.amountMinor, o.currency)}
+                      </td>
                     </tr>
                   ))}
                   {view.receipts.map((r, i) => (
-                    <tr key={`r${i}`}>
-                      <td><span className="tag good">{r.direction}</span></td>
-                      <td>{r.counterparty}</td>
-                      <td className="num">{formatMinor(r.amountMinor, r.currency)}</td>
+                    <tr key={`r${i}`} className="border-b border-line/50 last:border-0">
+                      <td className="px-3 py-2.5">
+                        <span className="rounded-md bg-mint/10 px-2 py-0.5 text-[11px] text-mint">
+                          {r.direction}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5">{r.counterparty}</td>
+                      <td className="tnum whitespace-nowrap px-3 py-2.5 text-right font-mono">
+                        {formatMinor(r.amountMinor, r.currency)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
-        </div>
+        </Card>
       )}
-      {error && <div className="err">{error}</div>}
+      {error && <Alert tone="error">{error}</Alert>}
     </main>
   );
 }

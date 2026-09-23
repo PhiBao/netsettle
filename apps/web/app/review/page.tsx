@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { formatMinor } from "@netting/core";
+import { Alert, Card, Kicker, Pill, Steps } from "../components/ui";
 
 interface Obligation {
   id: string;
@@ -39,6 +40,15 @@ interface State {
   reviews: Review[];
   batchPriority: { score: number; confidence: number; source: string } | null;
 }
+
+const btn =
+  "rounded-xl border border-line bg-panel2 px-4 py-2 text-sm font-semibold text-text transition hover:border-mint/60 disabled:opacity-45";
+const btnPrimary =
+  "rounded-xl bg-mint px-4 py-2 text-sm font-semibold text-mintdeep transition hover:brightness-110 disabled:opacity-45";
+const btnDanger =
+  "rounded-xl border border-rose/40 px-4 py-2 text-sm font-semibold text-rose transition hover:bg-rose/10 disabled:opacity-45";
+const inputCls =
+  "rounded-xl border border-line bg-ink px-3 py-2 font-mono text-[13px] text-text focus:border-mint/60 focus:outline-none";
 
 export default function ReviewPage() {
   const [state, setState] = useState<State | null>(null);
@@ -97,7 +107,7 @@ export default function ReviewPage() {
     }
   };
 
-  if (!state) return <main className="muted">Loading…</main>;
+  if (!state) return <main className="pt-10 text-mist">Loading…</main>;
   const open = state.reviews.filter((r) => !r.resolved);
   const eligible = state.obligations.filter(
     (o) => o.status === "pending" && !o.reviewRequired && !o.disputeNote,
@@ -105,149 +115,225 @@ export default function ReviewPage() {
   const disputedCount = state.obligations.filter((o) => o.disputeNote).length;
 
   return (
-    <main>
-      <div className="steps">
-        <div className="step done">1 · Ingest obligations</div>
-        <div className="step now">2 · Review ambiguities</div>
-        <div className="step">3 · Propose &amp; settle</div>
+    <main className="pt-10">
+      <Steps current={2} />
+      <Kicker>Human in the loop</Kicker>
+      <h1 className="font-display text-4xl font-bold tracking-tight sm:text-[44px]">
+        Review what the machine wasn&rsquo;t sure about.
+      </h1>
+      <div className="mt-4 flex flex-wrap items-center gap-2.5">
+        <Pill>
+          {state.obligations.length} obligations
+        </Pill>
+        <Pill tone={open.length > 0 ? "bad" : "ok"}>
+          {open.length} open reviews
+        </Pill>
+        <Pill tone="ok">{eligible.length} eligible</Pill>
+        {disputedCount > 0 && <Pill tone="bad">{disputedCount} disputed</Pill>}
       </div>
-      <h1>Review what the machine wasn&rsquo;t sure about.</h1>
-      <p className="lede">
-        {state.obligations.length} obligations ingested · {open.length} open reviews ·{" "}
-        {eligible.length} eligible for netting
-        {disputedCount > 0 && <> · {disputedCount} disputed</>}.
-      </p>
+
       {state.batchPriority && (
-        <div className="card">
-          <span className="tag">batch triage · {state.batchPriority.source}</span>{" "}
-          Review score <strong>{state.batchPriority.score.toFixed(2)}</strong> / 2
-          (confidence {state.batchPriority.confidence.toFixed(2)}).{" "}
-          {state.batchPriority.score >= 1
-            ? "A human should look before netting."
-            : "Clean enough to auto-process."}
-        </div>
+        <Card className="mt-6">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-faint">
+              Batch triage · {state.batchPriority.source}
+            </span>
+            <span className="tnum font-mono text-lg text-text">
+              {state.batchPriority.score.toFixed(2)}
+              <span className="text-faint"> / 2</span>
+            </span>
+            <span className="text-sm text-mist">
+              confidence {state.batchPriority.confidence.toFixed(2)} —{" "}
+              {state.batchPriority.score >= 1
+                ? "a human should look before netting."
+                : "clean enough to auto-process."}
+            </span>
+          </div>
+        </Card>
       )}
 
-      <h2>Obligations</h2>
-      <div className="card" style={{ padding: 8 }}>
-        <table>
-          <thead>
-            <tr>
-              <th>Debtor → Creditor</th>
-              <th style={{ textAlign: "right" }}>Amount</th>
-              <th>Ref</th>
-              <th>Kind</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {state.obligations.map((o) => (
-              <tr key={o.id}>
-                <td>
-                  {o.mappedDebtor ?? o.debtor} → {o.mappedCreditor ?? o.creditor}
-                  {o.reviewRequired && <span className="tag warn">needs review</span>}
-                  {o.status === "quarantined" && <span className="tag bad">quarantined</span>}
-                  {o.status === "rejected" && <span className="tag bad">dropped</span>}
-                  {o.disputeNote && <span className="tag bad" title={o.disputeNote}>disputed</span>}
-                </td>
-                <td className="num">{formatMinor(o.amountMinor, o.currency)}</td>
-                <td className="muted small">{o.reference}</td>
-                <td className="muted small">{o.kind ?? "—"}</td>
-                <td className="muted small">
-                  {o.disputeNote ? (
-                    <span className="row">
-                      <button className="btn" disabled={busy === o.id} onClick={() => dispute(o.id, "clear")}>
+      <h2 className="mb-4 mt-12 font-display text-xl font-semibold">Obligations</h2>
+      <Card className="!p-2 sm:!p-3">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] text-sm">
+            <thead>
+              <tr className="border-b border-line text-left text-xs uppercase tracking-[0.08em] text-faint">
+                <th className="px-4 py-3 font-semibold">Debtor → Creditor</th>
+                <th className="px-4 py-3 text-right font-semibold">Amount</th>
+                <th className="px-4 py-3 font-semibold">Ref</th>
+                <th className="px-4 py-3 font-semibold">Kind</th>
+                <th className="px-4 py-3 font-semibold">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {state.obligations.map((o) => (
+                <tr key={o.id} className="border-b border-line/50 last:border-0">
+                  <td className="px-4 py-3">
+                    <span className="font-medium">
+                      {o.mappedDebtor ?? o.debtor} → {o.mappedCreditor ?? o.creditor}
+                    </span>
+                    <span className="mt-1.5 flex flex-wrap gap-1.5">
+                      {o.reviewRequired && (
+                        <span className="rounded-md bg-gold/15 px-2 py-0.5 text-[11px] text-gold">
+                          needs review
+                        </span>
+                      )}
+                      {o.status === "quarantined" && (
+                        <span className="rounded-md bg-rose/15 px-2 py-0.5 text-[11px] text-rose">
+                          quarantined
+                        </span>
+                      )}
+                      {o.status === "rejected" && (
+                        <span className="rounded-md bg-rose/15 px-2 py-0.5 text-[11px] text-rose">
+                          dropped
+                        </span>
+                      )}
+                      {o.disputeNote && (
+                        <span
+                          className="rounded-md bg-rose/15 px-2 py-0.5 text-[11px] text-rose"
+                          title={o.disputeNote}
+                        >
+                          disputed
+                        </span>
+                      )}
+                    </span>
+                  </td>
+                  <td className="tnum whitespace-nowrap px-4 py-3 text-right font-mono">
+                    {formatMinor(o.amountMinor, o.currency)}
+                  </td>
+                  <td className="px-4 py-3 font-mono text-xs text-mist">{o.reference}</td>
+                  <td className="px-4 py-3 text-[13px] text-mist">{o.kind ?? "—"}</td>
+                  <td className="px-4 py-3">
+                    {o.disputeNote ? (
+                      <button className={btn} disabled={busy === o.id} onClick={() => dispute(o.id, "clear")}>
                         Resolve
                       </button>
-                    </span>
-                  ) : o.status === "pending" ? (
-                    disputing === o.id ? (
-                      <span className="row">
-                        <input
-                          value={disputeNote}
-                          onChange={(e) => setDisputeNote(e.target.value)}
-                          placeholder="Dispute note…"
-                          style={{ maxWidth: 180 }}
-                        />
-                        <button className="btn danger" disabled={busy === o.id || !disputeNote.trim()} onClick={() => dispute(o.id, "raise")}>
-                          Flag
+                    ) : o.status === "pending" ? (
+                      disputing === o.id ? (
+                        <span className="flex flex-wrap items-center gap-2">
+                          <input
+                            value={disputeNote}
+                            onChange={(e) => setDisputeNote(e.target.value)}
+                            placeholder="Dispute note…"
+                            className={`${inputCls} w-44`}
+                          />
+                          <button
+                            className={btnDanger}
+                            disabled={busy === o.id || !disputeNote.trim()}
+                            onClick={() => dispute(o.id, "raise")}
+                          >
+                            Flag
+                          </button>
+                          <button
+                            className={btn}
+                            onClick={() => {
+                              setDisputing(null);
+                              setDisputeNote("");
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </span>
+                      ) : (
+                        <button className={btn} onClick={() => setDisputing(o.id)}>
+                          Dispute
                         </button>
-                        <button className="btn" onClick={() => { setDisputing(null); setDisputeNote(""); }}>
-                          Cancel
-                        </button>
-                      </span>
+                      )
                     ) : (
-                      <button className="btn" onClick={() => setDisputing(o.id)}>
-                        Dispute
-                      </button>
-                    )
-                  ) : (
-                    o.status
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                      <span className="text-[13px] text-faint">{o.status}</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      <h2 className="mb-4 mt-12 font-display text-xl font-semibold">Review queue</h2>
+      {open.length === 0 && (
+        <Alert tone="success">Nothing ambiguous. Proceed to proposal.</Alert>
+      )}
+      <div className="grid gap-4">
+        {open.map((r) => (
+          <Card key={r.id} className="!p-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-md bg-panel px-2 py-0.5 font-mono text-[11px] text-mist">
+                {r.field}
+              </span>
+              <span className="rounded-md bg-panel px-2 py-0.5 font-mono text-[11px] text-mist">
+                {r.source}
+              </span>
+              <span className="tnum text-xs text-faint">
+                confidence {r.confidence.toFixed(2)}
+              </span>
+            </div>
+            <p className="mt-3 text-[15px]">
+              <code className="rounded bg-ink px-1.5 py-0.5 font-mono text-[13px]">
+                {r.raw}
+              </code>
+              {r.suggestion && (
+                <>
+                  {" "}→ suggested: <strong>{r.suggestion}</strong>
+                </>
+              )}
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2.5">
+              {r.field !== "duplicate" && r.suggestion && (
+                <button className={btnPrimary} disabled={busy === r.id} onClick={() => resolve(r.id, "accept")}>
+                  Accept “{r.suggestion}”
+                </button>
+              )}
+              {(r.field === "debtor" || r.field === "creditor") && (
+                <select
+                  value=""
+                  disabled={busy === r.id}
+                  onChange={(e) => e.target.value && resolve(r.id, "map", e.target.value)}
+                  className={`${inputCls} w-auto`}
+                >
+                  <option value="">Map to roster…</option>
+                  {state.roster.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {r.field === "duplicate" && (
+                <>
+                  <button className={btnDanger} disabled={busy === r.id} onClick={() => resolve(r.id, "drop")}>
+                    Drop as duplicate
+                  </button>
+                  <button className={btn} disabled={busy === r.id} onClick={() => resolve(r.id, "keep")}>
+                    Keep as distinct
+                  </button>
+                </>
+              )}
+              {r.field === "kind" && (
+                <button className={btn} disabled={busy === r.id} onClick={() => resolve(r.id, "accept")}>
+                  Accept label
+                </button>
+              )}
+            </div>
+          </Card>
+        ))}
       </div>
 
-      <h2>Review queue</h2>
-      {open.length === 0 && <div className="ok-box">Nothing ambiguous. Proceed to proposal.</div>}
-      {open.map((r) => (
-        <div className="card" key={r.id}>
-          <div className="row">
-            <span className="tag">{r.field}</span>
-            <span className="tag">{r.source}</span>
-            <span className="muted small">confidence {r.confidence.toFixed(2)}</span>
+      {error && <Alert tone="error">{error}</Alert>}
+
+      <div className="mt-10 flex items-center justify-between rounded-2xl border border-mint/30 bg-mint/5 px-6 py-5">
+        <div>
+          <div className="font-display text-[15px] font-semibold">
+            {eligible.length} obligations ready
           </div>
-          <p>
-            <code>{r.raw}</code>
-            {r.suggestion && (
-              <>
-                {" "}→ suggested: <strong>{r.suggestion}</strong>
-              </>
-            )}
-          </p>
-          <div className="row">
-            {r.field !== "duplicate" && r.suggestion && (
-              <button className="btn primary" disabled={busy === r.id} onClick={() => resolve(r.id, "accept")}>
-                Accept “{r.suggestion}”
-              </button>
-            )}
-            {(r.field === "debtor" || r.field === "creditor") && (
-              <select
-                value=""
-                disabled={busy === r.id}
-                onChange={(e) => e.target.value && resolve(r.id, "map", e.target.value)}
-                style={{ maxWidth: 220 }}
-              >
-                <option value="">Map to roster…</option>
-                {state.roster.map((name) => (
-                  <option key={name} value={name}>{name}</option>
-                ))}
-              </select>
-            )}
-            {r.field === "duplicate" && (
-              <>
-                <button className="btn danger" disabled={busy === r.id} onClick={() => resolve(r.id, "drop")}>
-                  Drop as duplicate
-                </button>
-                <button className="btn" disabled={busy === r.id} onClick={() => resolve(r.id, "keep")}>
-                  Keep as distinct
-                </button>
-              </>
-            )}
-            {r.field === "kind" && (
-              <button className="btn" disabled={busy === r.id} onClick={() => resolve(r.id, "accept")}>
-                Accept label
-              </button>
-            )}
+          <div className="text-sm text-mist">
+            Disputed, quarantined and unresolved rows stay out automatically.
           </div>
         </div>
-      ))}
-      {error && <div className="err">{error}</div>}
-      <div className="row" style={{ marginTop: 16 }}>
-        <a className="btn primary" href="/proposal" style={{ textDecoration: "none" }}>
+        <a
+          href="/proposal"
+          className="rounded-xl bg-mint px-6 py-3 text-sm font-semibold text-mintdeep no-underline transition hover:brightness-110"
+        >
           Continue to proposal →
         </a>
       </div>

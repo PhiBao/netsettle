@@ -14,10 +14,12 @@
     "@netting/canton-gateway": "workspace:*",
     "@netting/core": "workspace:*",
     "@netting/typesafe-judgments": "workspace:*",
+    "@tailwindcss/postcss": "4",
     "@typesafe-ai/sdk": "0.6.0",
     "next": "16.3.5",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "tailwindcss": "4"
   },
   "devDependencies": {
     "@types/node": "22.7.4",
