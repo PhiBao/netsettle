@@ -73,6 +73,53 @@ export function Card({
   );
 }
 
+export function Skeleton({ className = "" }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`animate-pulse rounded-lg bg-line/40 ${className}`}
+    />
+  );
+}
+
+export function PageSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <main className="pt-10" aria-label="Loading">
+      <div className="mb-10 mt-2 flex gap-3">
+        {[0, 1, 2].map((i) => (
+          <Skeleton key={i} className="h-8 flex-1" />
+        ))}
+      </div>
+      <Skeleton className="h-4 w-40" />
+      <Skeleton className="mt-4 h-12 w-3/4" />
+      <Skeleton className="mt-4 h-5 w-1/2" />
+      <div className="mt-8 space-y-4">
+        {Array.from({ length: rows }, (_, i) => (
+          <Skeleton key={i} className="h-36 w-full !rounded-2xl" />
+        ))}
+      </div>
+    </main>
+  );
+}
+
+export function EmptyState({
+  title,
+  body,
+  action,
+}: {
+  title: string;
+  body: string;
+  action: ReactNode;
+}) {
+  return (
+    <Card className="mt-8 text-center sm:!p-10">
+      <h2 className="font-display text-xl font-semibold">{title}</h2>
+      <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-mist">{body}</p>
+      <div className="mt-5 flex justify-center">{action}</div>
+    </Card>
+  );
+}
+
 export function Alert({
   tone,
   children,

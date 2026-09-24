@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { formatMinor } from "@netting/core";
-import { Alert, Card, Kicker, Pill, Steps } from "../components/ui";
+import { Alert, Card, EmptyState, Kicker, PageSkeleton, Pill, Steps } from "../components/ui";
 
 interface Summary {
   currency: string;
@@ -59,6 +59,8 @@ function HeroNumber({ minor, currency, struck }: { minor: string; currency: stri
 export default function ProposalPage() {
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [roster, setRoster] = useState<string[]>([]);
+  const [obligationCount, setObligationCount] = useState(0);
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [blockers, setBlockers] = useState<Record<string, string[]>>({});
   const [busy, setBusy] = useState(false);
@@ -71,9 +73,14 @@ export default function ProposalPage() {
       .then((s) => {
         setProposals(s.proposals);
         setRoster(s.roster);
+        setObligationCount(s.obligations.length);
         if (!viewParty && s.roster.length) setViewParty(s.roster[0]);
+        setLoaded(true);
       })
-      .catch((e) => setError(String(e)));
+      .catch((e) => {
+        setError(String(e));
+        setLoaded(true);
+      });
 
   useEffect(() => {
     refresh();
@@ -128,7 +135,24 @@ export default function ProposalPage() {
         The month, compressed.
       </h1>
 
-      {proposals.length === 0 && (
+      {!loaded && <PageSkeleton rows={2} />}
+
+      {loaded && proposals.length === 0 && obligationCount === 0 && (
+        <EmptyState
+          title="Nothing to compress yet"
+          body="Proposals are built from reviewed obligations. Ingest a CSV first, clear the review queue, then come back."
+          action={
+            <a
+              href="/"
+              className="rounded-xl bg-mint px-6 py-3 text-sm font-semibold text-mintdeep no-underline transition hover:brightness-110"
+            >
+              Go to ingest →
+            </a>
+          }
+        />
+      )}
+
+      {loaded && proposals.length === 0 && obligationCount > 0 && (
         <Card className="mt-8">
           <p className="max-w-xl text-[15px] leading-relaxed text-mist">
             No proposals yet. Eligible obligations are grouped by currency — one

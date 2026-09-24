@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { formatMinor } from "@netting/core";
-import { Alert, Card, Kicker, Pill, Steps } from "../components/ui";
+import { Alert, Card, EmptyState, Kicker, PageSkeleton, Pill, Steps } from "../components/ui";
 
 interface Obligation {
   id: string;
@@ -107,7 +107,7 @@ export default function ReviewPage() {
     }
   };
 
-  if (!state) return <main className="pt-10 text-mist">Loading…</main>;
+  if (!state) return <PageSkeleton rows={4} />;
   const open = state.reviews.filter((r) => !r.resolved);
   const eligible = state.obligations.filter(
     (o) => o.status === "pending" && !o.reviewRequired && !o.disputeNote,
@@ -152,7 +152,24 @@ export default function ReviewPage() {
         </Card>
       )}
 
-      <h2 className="mb-4 mt-12 font-display text-xl font-semibold">Obligations</h2>
+      {state.obligations.length === 0 && (
+        <EmptyState
+          title="No obligations yet"
+          body="Ingest a CSV or load the demo dataset first — review starts where ingest leaves off."
+          action={
+            <a
+              href="/"
+              className="rounded-xl bg-mint px-6 py-3 text-sm font-semibold text-mintdeep no-underline transition hover:brightness-110"
+            >
+              Go to ingest →
+            </a>
+          }
+        />
+      )}
+
+      {state.obligations.length > 0 && (
+        <>
+          <h2 className="mb-4 mt-12 font-display text-xl font-semibold">Obligations</h2>
       <Card className="!p-2 sm:!p-3">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm">
@@ -255,7 +272,9 @@ export default function ReviewPage() {
         <Alert tone="success">Nothing ambiguous. Proceed to proposal.</Alert>
       )}
       <div className="grid gap-4">
-        {open.map((r) => (
+        {open.map((r) => {
+          const o = state.obligations.find((x) => x.id === r.obligationId);
+          return (
           <Card key={r.id} className="!p-5">
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-md bg-panel px-2 py-0.5 font-mono text-[11px] text-mist">
@@ -268,7 +287,17 @@ export default function ReviewPage() {
                 confidence {r.confidence.toFixed(2)}
               </span>
             </div>
-            <p className="mt-3 text-[15px]">
+            {o && (
+              <p className="mt-2 text-[13px] text-faint">
+                On invoice{" "}
+                <code className="rounded bg-ink px-1.5 py-0.5 font-mono text-xs text-mist">
+                  {o.reference ?? o.id}
+                </code>{" "}
+                · {o.mappedDebtor ?? o.debtor} → {o.mappedCreditor ?? o.creditor} ·{" "}
+                <span className="tnum font-mono">{formatMinor(o.amountMinor, o.currency)}</span>
+              </p>
+            )}
+            <p className="mt-2.5 text-[15px]">
               <code className="rounded bg-ink px-1.5 py-0.5 font-mono text-[13px]">
                 {r.raw}
               </code>
@@ -316,27 +345,30 @@ export default function ReviewPage() {
               )}
             </div>
           </Card>
-        ))}
+          );
+        })}
       </div>
 
       {error && <Alert tone="error">{error}</Alert>}
 
-      <div className="mt-10 flex items-center justify-between rounded-2xl border border-mint/30 bg-mint/5 px-6 py-5">
-        <div>
-          <div className="font-display text-[15px] font-semibold">
-            {eligible.length} obligations ready
+          <div className="mt-10 flex flex-col gap-4 rounded-2xl border border-mint/30 bg-mint/5 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="font-display text-[15px] font-semibold">
+                {eligible.length} obligations ready
+              </div>
+              <div className="text-sm text-mist">
+                Disputed, quarantined and unresolved rows stay out automatically.
+              </div>
+            </div>
+            <a
+              href="/proposal"
+              className="rounded-xl bg-mint px-6 py-3 text-center text-sm font-semibold text-mintdeep no-underline transition hover:brightness-110"
+            >
+              Continue to proposal →
+            </a>
           </div>
-          <div className="text-sm text-mist">
-            Disputed, quarantined and unresolved rows stay out automatically.
-          </div>
-        </div>
-        <a
-          href="/proposal"
-          className="rounded-xl bg-mint px-6 py-3 text-sm font-semibold text-mintdeep no-underline transition hover:brightness-110"
-        >
-          Continue to proposal →
-        </a>
-      </div>
+        </>
+      )}
     </main>
   );
 }
