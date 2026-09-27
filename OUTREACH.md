@@ -71,6 +71,25 @@ invoices — which stalls you more?"). Low yield, near-zero cost.
 - ECTN (corporate-treasurers-only, you likely don't qualify), ACT forums
   (member-gated), cold email to generic treasury inboxes, paid panels.
 
+## Where to find 20 targets (search strings that work)
+
+Use these exact searches; send 5 touches/day for four days rather than 20 in one
+sitting (reply rates collapse when messages look bulk-sent).
+
+- **LinkedIn People:** `"Group Treasurer"` + `"intercompany"` · `"Head of Treasury"`
+  + `"netting"` · `"Intercompany Accountant"` · `"Treasury Operations"`
+  + `"multinational"` · `"Treasury Manager"` + `"SSC"` (shared service centre)
+- **LinkedIn Posts:** search `intercompany netting` and sort by Latest — replying
+  to someone already discussing the pain beats a cold DM.
+- **Consultants (highest response):** `GTreasury` consultants, `Kyriba` implementation
+  partners, `ION Treasury` admins, ex-PNC/J.P. Morgan netting-center staff —
+  their whole job is running this cycle for groups.
+- **Communities:** Canton Discord builder channels, the HackCanton Telegram mentor
+  channel, Treasury Management International / Treasury Today LinkedIn comment
+  sections.
+- **Forum thread:** post the skeleton above on the Canton forum and link it in
+  your platform journal — judges can see the attempt even if replies are slow.
+
 ## Quote log (copy per conversation)
 
 | # | Date | Role / co. size | Cycle freq / tools | Verbatim pain (their words) | Top objection | Pilot 1–5 |
