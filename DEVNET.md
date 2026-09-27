@@ -17,10 +17,20 @@ Upgrade sequence when vetting lands:
 1. Ask the Noders operator (Discord support / mentor channel) to vet package
    `netsettle-0.1.0` at its new hash — see the ask template below.
 2. Upload `daml/.daml/dist/netsettle-0.1.0.dar` via the Console UI (same login).
-3. On the demo host: `git pull`, rebuild the app, set `CANTON_PACKAGE_ID` to the
-   new hash in `/opt/netsettle/apps/web/.env.devnet`, restart
-   `netsettle-web.service`, then re-run the full flow (ingest → review → propose
-   → approve → settle) and check `/api/view` before announcing.
+3. On the demo host (`ssh -i ~/.ssh/netsettle-key.pem ec2-user@100.30.125.235`):
+   ```bash
+   cd /opt/netsettle && git pull
+   pnpm install --frozen-lockfile
+   (cd daml && dpm build)
+   # Confirm the built package id equals what was vetted, then point the app at it:
+   dpm inspect-dar daml/.daml/dist/netsettle-0.1.0.dar | grep -oE 'netsettle-0\.1\.0-[0-9a-f]{64}' | head -1
+   sed -i 's/^CANTON_PACKAGE_ID=.*/CANTON_PACKAGE_ID=<vetted package id>/' apps/web/.env.local
+   sudo systemctl restart netsettle-web.service
+   curl -s localhost:3100/api/state | grep -o '"packageId":"[^"]*"'
+   ```
+   Then run the full flow once (ingest → review → propose → approve → settle) and
+   check `/api/view` before announcing. The parties stay the same; only the
+   package id changes.
 4. Keep the old package vetted for rollback; pointing `CANTON_PACKAGE_ID` back
    is the only rollback step.
 

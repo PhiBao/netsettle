@@ -85,6 +85,12 @@ netting operator today. What Canton buys: *participants are private from each
 other*, and *settlement is atomic*. The privacy demo queries the ledger live
 per party so this claim is checkable, not asserted.
 
+Known MVP limitations, stated up front: the demo app is unauthenticated (public
+judging) and the operator service holds all party credentials server-side, so
+approvals are server-mediated — wallet-signed approvals via CIP-103 are
+roadmap; the shared DevNet node is public, so nothing confidential belongs in
+it; no real money moves, and no personal data is stored.
+
 ---
 
 ## 2. Architecture
