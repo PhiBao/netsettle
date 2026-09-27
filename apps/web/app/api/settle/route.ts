@@ -3,6 +3,7 @@ import { formatMinor, settlementBlockers } from "@netting/core";
 import { GatewayError } from "@netting/canton-gateway";
 import { getLedger, LedgerNotConfiguredError } from "@/lib/ledger";
 import { getSessionStore, withSession } from "@/lib/store";
+import { bump } from "@/lib/metrics";
 
 export async function POST(request: Request) {
   const { proposalId } = (await request.json()) as { proposalId: string };
@@ -55,6 +56,11 @@ export async function POST(request: Request) {
       if (obligation) obligation.status = "settled";
     }
     store.proposals[index] = { ...proposal, status: "settled", receipts: displayReceipts };
+    bump("settlementsExecuted");
+    if (!store.flowCompleted) {
+      store.flowCompleted = true;
+      bump("flowsCompleted");
+    }
     return withSession(NextResponse.json({
       settled: true,
       fullyNetted: displayReceipts.length === 0,

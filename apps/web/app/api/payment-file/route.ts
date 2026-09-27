@@ -7,6 +7,7 @@ import {
   type PaymentFileRow,
 } from "@netting/core";
 import { getSessionStore, withSession } from "@/lib/store";
+import { bump } from "@/lib/metrics";
 
 /**
  * Bank-actionable artifacts for a settled proposal.
@@ -43,6 +44,7 @@ export async function GET(request: Request) {
   const valueDate =
     dueDates.length > 0 ? valueDateFor(dueDates) : new Date().toISOString().slice(0, 10);
   const rows: PaymentFileRow[] = buildPaymentRows(proposal, proposal.receipts, valueDate);
+  bump("paymentFilesDownloaded");
 
   if (format === "pain001") {
     const xml = buildPain001(rows, {

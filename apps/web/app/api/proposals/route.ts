@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { createProposal, groupByCurrency, isProposalEligible } from "@netting/core";
 import type { StoredObligation } from "@/lib/store";
 import { GatewayError } from "@netting/canton-gateway";
-import { getLedger, LedgerNotConfiguredError, partyIdFor } from "@/lib/ledger";
+import { getLedger, LedgerNotConfiguredError, partyIdFor, termsBindingEnabled } from "@/lib/ledger";
 import { getSessionStore, withSession } from "@/lib/store";
+import { bump } from "@/lib/metrics";
 import { proposalTermsHash } from "@/lib/terms";
 
 /**
@@ -84,14 +85,17 @@ export async function POST(request: Request) {
       const requiredApprovers = proposal.requiredApprovals.map((key) =>
         partyIdFor(displayByKey.get(key)!),
       );
-      const termsHash = proposalTermsHash({
-        proposalId: proposal.id,
-        currency: proposal.currency,
-        obligationCids,
-        residuals,
-        requiredApprovers,
-        expiresAt: proposal.expiresAt,
-      });
+      const bindTerms = termsBindingEnabled();
+      const termsHash = bindTerms
+        ? proposalTermsHash({
+            proposalId: proposal.id,
+            currency: proposal.currency,
+            obligationCids,
+            residuals,
+            requiredApprovers,
+            expiresAt: proposal.expiresAt,
+          })
+        : undefined;
       const ledgerCid = await ledger.gateway.createProposal({
         operator: ledger.operatorParty,
         proposalId: proposal.id,
@@ -112,6 +116,7 @@ export async function POST(request: Request) {
       store.proposals.push(stored);
       created.push({ proposal: stored, ledgerCid });
     }
+    bump("proposalsCreated", created.length);
     return withSession(NextResponse.json({ proposals: created.map((c) => c.proposal) }), session);
   } catch (err) {
     if (err instanceof LedgerNotConfiguredError) {

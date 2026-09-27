@@ -160,143 +160,236 @@ reconciliation every cycle**.
 
 ## 2. ICP / Audience definition
 
-### 1. The user in one sentence
-
-**Group treasury operations managers at mid-market multinationals** need to
-**settle what their subsidiaries owe each other every month** but **cannot force
-entities onto a shared ledger or ask them to expose their payables**, so they
-**run the cycle in Excel and email, settle gross, and reconcile afterwards**.
-
-### 2. Who they are
+### 1. Who they are
 
 | | |
 | --- | --- |
-| **Primary user** | Group Treasury Operations Manager / Head of Treasury Operations |
-| **Company shape** | Multinational group, 5–50 legal entities, cross-border intercompany flows (EU/US/APAC), 10–200 intercompany invoices per month |
-| **Context** | Monthly netting cycle owned by a 3–8 person treasury team; entities run different ERPs |
-| **Measured on** | Trapped working capital, FX and bank fees, cycle time, audit findings |
-| **Current behaviour** | Excel + email cycle; everything settles gross; reconciliation after the fact |
-| **Secondary users** | Subsidiary finance approvers (controllers/CFOs) who sign off their own legs and must be certain no counterparty sees their payables |
-| **Economic buyer** | Group Treasurer / Head of Treasury Ops; payment-operations budget (84% of companies invested in it over the last 12–18 months) |
-| **Not the user** | Mega-corporates committed to a TMS module; single-entity groups; crypto-native treasuries |
+| **Segment** | Group treasury at mid-market multinationals — cross-border intercompany payables for goods, services, loans and tax; industry-agnostic within that (strongest fit: manufacturing, distribution, business services, tech with foreign subsidiaries) |
+| **Company size / stage** | $50M–$2B revenue · 5–50 legal entities · $1M–$100M gross intercompany volume per cycle |
+| **User** | Group Treasury Operations Manager / Head of Treasury Operations — owns the monthly cycle for a 3–8 person team |
+| **Buyer** | Same person for tooling at this price point; Group Treasurer signs; procurement joins above ~$50k. *Assumed from how TMS/netting budgets sit — to confirm in pilot conversations.* |
+| **Geography** | EU + US + APAC groups with cross-border flows; no constraint on the netting decision itself (it is currency-bucketed and bank-rail compatible) |
 
-### 3. What they need — and what kills a deal
+### 2. Their pain
 
-- **Must have:** bank-ready output (CSV + pain.001), no ERP project, entity-level
-  privacy, an audit trail that survives internal audit and tax review.
-- **Nice to have:** scheduled cycles, ERP import formats, dispute workflow,
-  multi-currency (FX-aware netting is roadmap — quoted rates only, never
-  invented).
-- **Dealbreakers:** payables leaving the group's control, opaque math, a
-  half-settled cycle, or requiring every entity to adopt new software.
+- **Top pain point (their words):** "I can't ask the subsidiaries to upload their payables into a shared system — an AP file shows suppliers, pricing and margins — and I can't risk a netting cycle that executes halfway. So everything settles gross, every month."
+- **How often it happens:** monthly cycle (some groups weekly or quarterly); disputes, late invoices and FX noise land inside every cycle.
+- **What it costs them:** days of treasury + entity-controller time per cycle; bank and FX fees on every leg — including the circular part that cancels arithmetically; working capital trapped in intercompany cycles; reconciliation and audit risk; month-end pressure.
+- **How they solve it today:** Excel + email (the norm), an enterprise TMS module (multi-month implementation), or a bank netting center where the bank becomes central counterparty.
 
-### 4. Why they adopt
+### 3. What they want
 
-- **Trigger:** a painful cycle (late invoices, disputes, month-end pressure) or
-  a mandate to cut cross-border payment costs.
-- **First moment of value:** upload one month of payables and see gross → net in
-  minutes, with the circular part explained — no integration required.
-- **Wedge to expansion:** one group is the unit of adoption; one signature
-  onboards every subsidiary; cycles, entities and currencies expand from there.
+- **Job to be done:** "When the monthly netting cycle starts, I want to compress what the group owes itself and settle only the residual, so I can free working capital, cut payment fees, and keep an audit trail — without asking any subsidiary to expose its books."
+- **What would make them switch:** proof in one cycle (upload → gross-to-net in minutes); a bank-ready output their existing rail accepts (CSV + ISO 20022 pain.001); entity-level privacy; no ERP project; a trust boundary they can explain to internal audit and tax.
+- **What would stop them:** payables data leaving the group's control; opaqueness of the netting math; a half-settled cycle ever being possible; implementation effort; and — today's real blocker — no reference customer in treasury yet.
 
-### 5. Beachhead and expansion
+### 4. Where to find them
 
-- **Beachhead:** one mid-market group's monthly cycle — CSV in, bank file out.
-- **Expansion:** more entities/currencies per group → FX-aware netting with a
-  quoted-rate oracle → netting-center-as-a-service for mid-caps without
-  treasury IT.
+- **Communities, events and channels:** Treasury Today and TMI (Treasury Management International) content + LinkedIn comment threads; AFP (US) and EACT member communities (member-gated); shared-service-centre / intercompany accounting groups; Canton builder and mentor channels (ecosystem leverage, not end users).
+- **Tools and platforms they already rely on:** Excel; SAP/Oracle/NetSuite ERPs; TMS (Kyriba, GTreasury, ION); bank portals (PNC PINACLE, J.P. Morgan ACCESS); SWIFT / pain.001 rails.
+- **3 real companies that fit the profile** (documented netting users from our validation sources — profile fits, *not* customers and not in contact yet): Weir Group PLC (Group Treasurer described netting benefits via J.P. Morgan), Bandwidth (Treasurer on settling bilaterally before netting), Innospec (Group Treasurer on replacing an Excel-based process). Names + sources in `VALIDATION.md`. Our own named-pipeline is built through the outreach in `OUTREACH.md` (search strings there).
+
+### 5. Who is NOT your customer (for now)
+
+- **Mega-corporates committed to an enterprise TMS rollout** — 12-month implementation programs; we win on time-to-first-cycle.
+- **Single-entity or domestic-only groups** — no intercompany cycle to compress.
+- **Groups that need cross-currency netting today** — FX-aware netting is roadmap; we refuse to invent rates.
+- **Crypto-native/DIY treasuries** — different buyer, different trust model.
+- **Consumers and small businesses** — intercompany netting is a corporate-group problem.
 
 ### Checklist
 
-- [x] A specific user, not "everyone"
-- [x] Names both the approver and the buyer
-- [x] Current behaviour and why it persists
-- [x] Must-haves and dealbreakers stated
-- [x] Beachhead is one group; expansion path defined
-
-> Non-goals: we do not move money, hold funds, or replace the ERP. NetSettle
-> compresses the decision and produces the bank file; value moves through the
-> existing banking rails.
+- [x] The segment is narrow enough to name real companies or people
+- [x] User and buyer are identified (buyer marked as assumption)
+- [x] The pain is described from their point of view
+- [x] You know where to reach them
+- [x] You've said who you're not targeting
 
 ---
 
 ## 3. Metrics / Validation evidence
 
-**Problem evidence (secondary research, cited, checkable — `VALIDATION.md`):**
+### 1. North Star metric
 
-- 88% of finance decision-makers report payment-operations problems; 51% do up
-  to half of payment operations manually; only 1 in 9 have fully automated
-  disbursements — Modern Treasury/Harris 2025; Deluxe/Strategic Treasurer 2025.
-- Netting cuts cross-border transfers by up to 70% and hedge trades by up to
-  75% — GTreasury/Ripple Treasury material; Treasury Today.
-- 84% of companies invested in payment operations in the last 12–18 months —
-  Modern Treasury/Harris 2025.
-- Named treasurers describing the spreadsheet cycle in their own words (Weir
-  Group, Bandwidth, Innospec) — J.P. Morgan, Treasury Today, GTreasury case
-  studies.
+- **Metric:** **executed netting cycles per group per month** — one cycle = ingest → approvals → atomic settlement → bank file, for one group.
+- **Why this one:** it is the product's unit of value. Partial usage (uploads without settlement) or vanity traffic does not count; a cycle executed means a treasury team replaced the spreadsheet ritual for one month and will come back next month for a new reason: the accumulated mappings, disputes and counterparty graph.
+- **How you measure it:** on-ledger `SettlementReceipt` / `NettingProposal` executions per operator party (ledger is the source of truth), cross-checked with the app's session store. Today this is counted manually per demo run; we are adding counter instrumentation to the demo (no PII) before submission.
 
-**Product evidence (observable in the live demo):**
+### 2. What we needed to validate
 
-- $312,000 gross across 6 USD invoices → $40,000 net in 3 transfers (87.2%
-  compression).
-- €70,000 gross → €30,000 net in 1 transfer.
-- A fully-circular USD cycle → **zero transfers**, obligations archived in one
-  atomic commit; the payment-file endpoint refuses with "nothing to pay".
-- Failure path: settlement with approvals missing is refused and the ledger is
-  untouched (proved on-ledger, `testExecuteBlocked`).
-- Approvals are bound to a terms hash: a rewritten proposal cannot settle with
-  old approvals (`testExecuteBlockedOnTermsMismatch`).
-- Privacy: per-party queries against the ledger show own legs visible and
-  same-batch receipts involving other parties absent (`/api/view`).
+| Assumption | Why it matters | Status |
+| --- | --- | --- |
+| Groups run a monthly intercompany cycle that is manual and costly | no cycle, no product | ✅ confirmed by secondary research (88% payment-ops problems; named treasurers describe the spreadsheet cycle) — ❌ **not yet confirmed by direct interviews** |
+| Subsidiaries refuse to expose payables in a shared system | our privacy differentiator is load-bearing | ⏳ testing (secondary reasoning + AP-file leakage argument; needs operator confirmation) |
+| Treasury will accept an operator that sees the full graph (as bank netting centers do) | determines whether privacy story blocks or enables adoption | ⏳ testing |
+| A CSV → bank-file pilot is adoptable without IT | our wedge vs TMS projects | ⏳ testing (product works; no external pilot yet) |
+| Groups will pay, anchored to eliminated fees | business model | ⏳ testing (budget exists — 84% invested — pricing inferred, not quoted) |
 
-**Primary research status (honest):** direct operator conversations are the first
-post-hackathon task; the outreach log below is updated as calls happen. We do not
-present surveys as interviews.
+### 3. Conversations
 
-| # | Date | Role / co. size | Pain (their words) | Objection | Pilot 1–5 |
-|---|------|-----------------|--------------------|-----------|-----------|
-| 1 | | | | | |
-| 2 | | | | | |
-| 3 | | | | | |
+| # | Who (role, company type) | Date | Key takeaway |
+| --- | --- | --- | --- |
+| 1 | _outreach sent — awaiting reply_ | | |
+| 2 | _outreach sent — awaiting reply_ | | |
+| 3 | _target: TMS implementation consultant_ | | |
+
+**Honest status:** zero operator conversations at the time of writing. The
+outreach kit (`OUTREACH.md`) targets 20 touches → 5 conversations before the
+deadline; this table is updated as replies land. We do not fabricate interviews,
+and we do not present surveys as conversations.
+
+**Strongest quote:** none yet — deliberately left empty until the first real
+call. The secondary-research quotes we *do* have (Weir Group, Bandwidth,
+Innospec) are cited in `VALIDATION.md` as evidence of the problem, not as users
+of this product.
+
+### 4. Tests and results
+
+- **What we tried:** (1) full product flow on the shared HackCanton DevNet, repeatedly; (2) malformed and hostile inputs (duplicate invoices, unknown counterparties, missing approvals, fully-circular cycles, replayed approvals); (3) public demo without instrumentation.
+- **What happened:** every created obligation archived at settlement (0 active on DevNet); **8 settlement receipts currently active on the shared DevNet** across ≈4 executed cycles; USD demo cycle $312,000 → $40,000 in 3 transfers; EUR €70,000 → €30,000 in 1; blocked settlements refused with the ledger untouched; a tampered-terms proposal could not settle.
+- **What we changed because of it:** proposal commits parallelized after measuring 40–60s per cycle; the privacy check reworked after we watched raw shared-node counts mislead (now proves isolation against the session's own batch); approvals bound to a proposal-terms hash after adversarial review; fully-netted cycles made first-class after edge-case testing; bootstrap made idempotent after cold-start failures.
+
+### 5. Product and on-ledger metrics
+
+| Metric | How we measure it | Now | Target by submission |
+| --- | --- | --- | --- |
+| Users who tried the demo | demo instrumentation (counter, no PII) — **not built yet** | 0 measured | counter live + ≥10 external sessions |
+| Users who completed the core flow | settle events per session | 0 measured | ≥5 completions (any external) |
+| Settlements executed on DevNet | `SettlementReceipt` contracts + proposals | **4 cycles / 8 receipts active** | ≥25 cycles (judges' runs count) |
+| Active parties | operator + subsidiaries on DevNet | **5** | 5 held (party allocation is operator-gated) |
+| Tests green | `pnpm -r test` + `dpm test` | 20 core / 6 TypeSafe / 7 gateway / 6 Daml | stay green + route-level tests |
+
+### 6. Success criteria after the hackathon
+
+| Metric | Target in 90 days |
+| --- | --- |
+| Logged operator conversations | 15 |
+| Groups running a real payables file through a pilot | 3 |
+| Groups completing 2 consecutive monthly cycles | 1 |
+| Pipeline: warm intros from TMS consultants | 5 |
+| Signed pilot (paid or design-partner agreement) | 1 |
+
+### 7. What we still don't know
+
+- Whether willingness to pilot converts to willingness to pay, and at what price.
+- Tax and accounting treatment of netted intercompany settlement per jurisdiction (varies; needs the pilot group's tax sign-off).
+- Whether subsidiaries truly object to the operator-sees-all trust boundary, or welcome it as the status quo they already have with bank netting centers.
+- Where the scaling wall is: cycle detection is correct but greedy at 10,000+ invoices.
+- Which ERP export format the first pilot actually needs.
+- **How we'll answer:** the outreach sprint (this week), a concierge pilot design with the first willing group, and tax review with that group's advisors.
+
+### Checklist
+
+- [x] One North Star metric with a clear definition
+- [ ] At least 3 conversations with potential users — **top open item; currently 0**
+- [x] Assumptions are marked confirmed, rejected or still testing
+- [x] At least one test with a number attached (DevNet receipts, compression, blocked paths)
+- [x] Current values and targets are filled in
+- [x] You show what changed because of what you learned (parallel commits, isolation proof, terms binding, full netting, idempotent bootstrap)
 
 ---
 
-## 4. GTM materials
+## 4. GTM / Go-to-market
 
-**Wedge:** land one group treasury team with the monthly netting cycle. The
-product is usable with a CSV upload — no ERP project, no IT queue. The first
-cycle delivers the ROI proof (transfers eliminated, fees avoided) that justifies
-the next cycle.
+### 1. Positioning
 
-**Channels, in order:**
+**In one sentence:** For **group treasury teams at mid-market multinationals** who
+**settle intercompany payables gross because payables are confidential and
+netting must be all-or-nothing**, **NetSettle** is a **monthly netting
+workstation** that **compresses the cycle into one atomic Canton transaction —
+each subsidiary seeing only its own legs — and exports a bank-ready payment
+file**. Unlike **spreadsheets, enterprise TMS modules and bank netting
+centers**, we **require no ERP project, insert no principal counterparty, and
+keep subsidiaries private from each other**.
 
-1. **Warm intros via treasury/finance networks** (mentors, advisors, ex-treasury
-   consultants) — highest response; the outreach kit is in `OUTREACH.md`.
-2. **TMS-adjacent consultants and bank netting-center alumni** — they implement
-   netting for a living and know which groups hate the spreadsheet.
-3. **Canton ecosystem distribution** — AppsFactory accelerator, hackathon
-   mentors, Canton Foundation network, Featured App path after the hackathon.
-4. **Content**: a public "netting cycle teardown" (how circular debt is settled
-   today, with numbers) to pull inbound from treasury communities.
+- **What do users do today instead?** Excel + email (the norm); an enterprise
+  TMS netting module; or a bank netting center (bank becomes central
+  counterparty).
+- **Why Canton, and not any other chain?** Stakeholder-scoped privacy between
+  parties plus atomic multi-party execution. A transparent chain publishes the
+  group's netting graph; a shared database gives every participant the same
+  read; a settlement bank inserts principal risk. *(Honest boundary: the
+  operator computing over the full graph sees everything — the same position as
+  a netting center, minus the intermediary. This is stated in every pitch.)*
 
-**Expansion:** one group → more entities/currencies per group → FX-aware netting
-→ netting-center-as-a-service for mid-caps without treasury IT.
+### 2. First customers
 
-**Pricing hypothesis:** per-cycle or annual seat pricing anchored to a fraction
-of eliminated FX and bank fees; the buyer already has a budget line for payment
-operations. Monetization must not block the first cycle — start with a
-concierge-assisted pilot.
+- **Segment:** mid-market multinationals (5–50 entities, $50M–$2B revenue) whose
+  treasury ops team runs a monthly intercompany cycle; strongest where
+  cross-border EU/US/APAC flows exist.
+- **Why them first:** the pain is recurring and measurable; a CSV pilot needs no
+  IT project; one signature onboards every subsidiary; the pain.001 output does
+  not replace their system of record, so approval is small.
+- **First 3–5 targets:** (a) treasury leads identified through the outreach
+  sprint's LinkedIn search strings; (b) TMS implementation consultants who run
+  netting projects; (c) mentor introductions inside the HackCanton ecosystem.
+  Profile evidence (not leads): Weir Group, Bandwidth, Innospec — treasurers who
+  have publicly described running these cycles.
 
-**Pilot plan (2–3 steps + integrations):**
+### 3. Distribution channels
 
-1. Import one month of intercompany payables (CSV first; SAP/Oracle export
-   formats next) and run the netting math against the group's roster.
-2. Run the approval flow with 2–3 subsidiaries on DevNet; agree the controls
-   (approval authority, dispute handling) with group treasury.
-3. On successful cycle, connect the operator's participant to the group's
-   Canton node (or hosted), and hand the pain.001 file to the existing bank
-   rail. Required integrations: ERP export, Canton participant + package
-   vetting, bank payment format.
+| Channel | Why it reaches our users | First concrete action | Effort / cost |
+| --- | --- | --- | --- |
+| Warm outreach + referrals (LinkedIn, mentors) | trust is the buying blocker; a conversation beats a landing page | Send the 20 touches in `OUTREACH.md`; book 5 calls | 1–2 days, free |
+| TMS-adjacent consultants | they implement netting for a living and know which groups hate Excel | 10 consultant DMs with the live demo link | 1 day, free |
+| Treasury content communities (Treasury Today / TMI / AFP) | where the ICP reads and comments | Publish the "netting cycle teardown" post + demo thread | 2 days, free |
+| Canton ecosystem (mentors, accelerator, Featured App, wallet/node partners) | post-hackathon distribution and credibility with institutions | Accelerator application + Featured App path after a MainNet deployment | medium, free/low |
+| Account-specific outreach to profile fits | highest intent once the pitch has evidence | 10 targeted emails after the first 5 calls | 2 days, free |
+
+### 4. Acquisition hypotheses
+
+| Hypothesis | How we test it | Success metric | Status |
+| --- | --- | --- | --- |
+| A treasury team will run one real month through a CSV pilot because the output is a bank file, not a system replacement | Offer a concierge pilot to every interviewee | ≥1 group processes a real payables file | ⏳ testing |
+| TMS consultants will refer groups because a lightweight netting tool fits projects too small for a TMS | 10 consultant conversations with the demo | ≥2 warm intros | ⏳ testing |
+| Pricing anchored to eliminated fees (fraction of saved bank/FX cost) is acceptable | Pricing questions in the interview script | ≥1 willingness-to-pay signal | ⏳ testing |
+| Entity-level privacy is decisive versus a shared database | Unprompted mentions in interviews; positioning A/B | ≥3 of 5 conversations raise confidentiality unprompted | ⏳ testing |
+
+### 5. Business model
+
+- **Who pays, and for what:** group treasury pays for the netting cycle — a
+  per-group subscription (all entities included) or per-cycle fee; later,
+  white-label for TMS vendors and banks that want the workflow without building
+  it.
+- **Pricing hypothesis:** annual per-group subscription anchored to a fraction
+  of eliminated bank/FX fees; first cycle free as the concierge pilot.
+- **Revenue on Canton:** no token and no value transfer — subscriptions plus, on
+  MainNet, Featured App rewards and later usage-based pricing for
+  netting-as-a-service. Value flows through the existing banking rails, which is
+  exactly the selling point for treasury.
+- **Why now:** payment-ops budget is active (84% invested in the last 12–18
+  months), netting ROI is documented (up to 70% fewer transfers), and Canton's
+  privacy + atomicity just became accessible to a small team via Daml 3.x and
+  the JSON Ledger API.
+
+### 6. First 90 days after the hackathon
+
+| Period | Milestone | How we'll know it's done |
+| --- | --- | --- |
+| Weeks 1–4 | 5+ logged conversations; pilot one-pager and pricing tests out | Conversation log filled; ≥3 groups requested a pilot walkthrough |
+| Weeks 5–8 | Concierge pilot with one group on a dedicated lens (DevNet/hosted) | One real month of payables processed end-to-end; bank file produced |
+| Weeks 9–12 | Production deployment path + first paid design partner; Feature App application prepared | Signed pilot/design-partner agreement; participant/topology decision documented |
+
+### 7. Risks and what you need
+
+- **What could block adoption:** no reference customer yet (the real blocker);
+  tax/accounting treatment of netted settlement (needs the group's tax sign-off);
+  entity-level trust in the operator role; ERP export formats for the pilot; a
+  production participant/hosting story (ours or the group's); jurisdiction
+  questions on netting itself.
+- **What you need from the ecosystem:** introductions to treasury operators and
+  TMS consultants (mentors), guidance/support on hosting a production
+  participant, legal/tax framing for netting pilots, and accelerator
+  distribution after the hackathon.
+
+### Checklist
+
+- [x] Positioning fits in one sentence
+- [x] First segment is specific — not "everyone in DeFi"
+- [x] At least two channels with a concrete first action
+- [x] At least three hypotheses, each with a metric
+- [x] It's clear who pays and why
+- [x] You can explain why Canton and not any chain
 
 ---
 

@@ -11,6 +11,7 @@ import {
 import { ledgerStatus } from "@/lib/ledger";
 import { DEMO_CSV, DEMO_ROSTER } from "@/lib/seed";
 import { getSessionStore, resetSessionStore, withSession, type ReviewItem } from "@/lib/store";
+import { bump } from "@/lib/metrics";
 
 function getAsk(): AskFn | undefined {
   if (!process.env.TYPESAFE_API_KEY) return undefined;
@@ -161,6 +162,7 @@ export async function POST(request: Request) {
     ask,
   );
   store.batchPriority = { score: priority.value, confidence: priority.confidence, source: priority.source };
+  bump("ingests");
 
   return withSession(NextResponse.json({ ...store, ledger: ledgerStatus() }), session);
 }

@@ -46,6 +46,20 @@ export interface LedgerConfig {
 
 let cached: LedgerConfig | null = null;
 
+/**
+ * Terms-binding rollout flag.
+ *
+ * The hardened Daml package requires every proposal and approval to carry a
+ * terms hash; the package currently vetted on the shared DevNet predates that
+ * field. Setting CANTON_TERMS_BINDING=off keeps the app deployable against the
+ * older package (app-only improvements ship first); flipping it back on — after
+ * the Noders team vets the hardened package — re-enables the binding with no
+ * other change. Defaults to on.
+ */
+export function termsBindingEnabled(): boolean {
+  return process.env.CANTON_TERMS_BINDING !== "off";
+}
+
 export function getLedger(): LedgerConfig {
   if (cached) return cached;
   const baseUrl = process.env.CANTON_JSON_API_URL;

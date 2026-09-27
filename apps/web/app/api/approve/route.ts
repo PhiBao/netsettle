@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { approveProposal } from "@netting/core";
 import { GatewayError } from "@netting/canton-gateway";
-import { getLedger, LedgerNotConfiguredError, partyIdFor } from "@/lib/ledger";
+import { getLedger, LedgerNotConfiguredError, partyIdFor, termsBindingEnabled } from "@/lib/ledger";
 import { getSessionStore, withSession } from "@/lib/store";
+import { bump } from "@/lib/metrics";
 
 export async function POST(request: Request) {
   const { proposalId, partyKey } = (await request.json()) as {
@@ -27,7 +28,8 @@ export async function POST(request: Request) {
     }
     const display = displayByKey.get(partyKey);
     if (!display) return NextResponse.json({ error: "Unknown party" }, { status: 400 });
-    if (!proposal.termsHash) {
+    const bindTerms = termsBindingEnabled();
+    if (bindTerms && !proposal.termsHash) {
       return NextResponse.json(
         { error: "Proposal has no terms hash — recreate it before approving." },
         { status: 409 },
@@ -37,7 +39,7 @@ export async function POST(request: Request) {
       operator: ledger.operatorParty,
       approver: partyIdFor(display),
       proposalId: proposal.id,
-      termsHash: proposal.termsHash,
+      termsHash: bindTerms ? proposal.termsHash : undefined,
     });
     const updated = approveProposal(proposal, partyKey, display, new Date().toISOString());
     store.proposals[index] = {
@@ -46,6 +48,7 @@ export async function POST(request: Request) {
       ledgerApprovalCids: [...proposal.ledgerApprovalCids, approvalCid],
       receipts: proposal.receipts,
     };
+    bump("approvalsCast");
     return withSession(NextResponse.json({ proposal: store.proposals[index], approvalCid }), session);
   } catch (err) {
     if (err instanceof LedgerNotConfiguredError) {

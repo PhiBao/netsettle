@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { bump } from "@/lib/metrics";
 import type {
   NettingProposal,
   Obligation,
@@ -48,6 +49,8 @@ export interface DemoStore {
   reviews: ReviewItem[];
   ingestIssues: Array<{ row: number; field?: string; code: string; message: string }>;
   batchPriority: { score: number; confidence: number; source: string } | null;
+  /** Set when this session settles its first proposal (anonymous counter). */
+  flowCompleted?: boolean;
 }
 
 export const SESSION_COOKIE = "ns-session";
@@ -87,6 +90,7 @@ export async function getSessionStore(): Promise<SessionContext> {
     sessionId = crypto.randomUUID();
     map.set(sessionId, freshStore());
     isNew = true;
+    bump("sessionsStarted");
     while (map.size > MAX_SESSIONS) {
       const oldest = map.keys().next().value as string | undefined;
       if (oldest === undefined) break;
