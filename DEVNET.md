@@ -1,11 +1,39 @@
 # Shared DevNet runbook — HackCanton Season 3 node
 
 Noders provides a **shared DevNet sandbox** for Season 3 teams so you build
-logic, not infrastructure. **Status 2026-09-23: FULLY LIVE — the public demo
-(https://100-30-125-235.nip.io) runs against the shared node** with
-auto-refreshing offline tokens (EUR €70k→€30k + USD $312k→$40k settled through
-the public site, receipts + pain.001 verified). Local sandbox retired from the
-host. Details below.
+logic, not infrastructure. **Status 2026-09-27:** the public demo
+(https://100-30-125-235.nip.io) runs against the shared node with auto-refreshing
+offline tokens (EUR €70k→€30k + USD $312k→$40k settled through the public site,
+receipts + pain.001 verified).
+
+**Package note (2026-09-27):** the repo now carries hardened contracts —
+`Approval` is bound to a proposal-terms hash and fully-netted cycles settle with
+zero transfers. A Daml change produces a **new package id**, and the shared node
+only vets packages the Noders operator approves. The live demo therefore keeps
+running the previously vetted package (`d1b3b958…`) until the new one is vetted.
+
+Upgrade sequence when vetting lands:
+
+1. Ask the Noders operator (Discord support / mentor channel) to vet package
+   `netsettle-0.1.0` at its new hash — see the ask template below.
+2. Upload `daml/.daml/dist/netsettle-0.1.0.dar` via the Console UI (same login).
+3. On the demo host: `git pull`, rebuild the app, set `CANTON_PACKAGE_ID` to the
+   new hash in `/opt/netsettle/apps/web/.env.devnet`, restart
+   `netsettle-web.service`, then re-run the full flow (ingest → review → propose
+   → approve → settle) and check `/api/view` before announcing.
+4. Keep the old package vetted for rollback; pointing `CANTON_PACKAGE_ID` back
+   is the only rollback step.
+
+**Operator ask (copy-paste):**
+
+> Hi Noders team — HackCanton team NetSettle (Track 1, package `netsettle`).
+> We hardened our Daml contracts (approvals now bind to a proposal-terms hash,
+> and fully-netted cycles settle with zero transfers) and need the new build
+> vetted on `hackcanton-01`: package id
+> `<new package id from daml/.daml/dist/netsettle-0.1.0.dar>`, same name/version
+> `netsettle-0.1.0`, uploaded via the Console. Our existing operator + 4
+> subsidiary parties can stay as they are. Thanks!
+
 
 Source: Season 3 materials (official) + live endpoint probes.
 

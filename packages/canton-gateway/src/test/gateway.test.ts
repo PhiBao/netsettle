@@ -32,7 +32,7 @@ describe("encoding helpers", () => {
     });
     await assert.rejects(
       () =>
-        gateway.createApproval({ operator: "O", approver: "A", proposalId: "P" }),
+        gateway.createApproval({ operator: "O", approver: "A", proposalId: "P", termsHash: "T" }),
       (err: unknown) => err instanceof GatewayError && err.endpoint.includes("submit"),
     );
   });
@@ -81,11 +81,12 @@ describe("live ledger round-trip", { skip: !LIVE }, () => {
       ],
       requiredApprovers: [de, fr, sg],
       expiresAt: "2026-12-31T00:00:00Z",
+      termsHash: `terms-${stamp}`,
     });
     const approvals = [
-      await gateway.createApproval({ operator, approver: de, proposalId: `PROP-${stamp}` }),
-      await gateway.createApproval({ operator, approver: fr, proposalId: `PROP-${stamp}` }),
-      await gateway.createApproval({ operator, approver: sg, proposalId: `PROP-${stamp}` }),
+      await gateway.createApproval({ operator, approver: de, proposalId: `PROP-${stamp}`, termsHash: `terms-${stamp}` }),
+      await gateway.createApproval({ operator, approver: fr, proposalId: `PROP-${stamp}`, termsHash: `terms-${stamp}` }),
+      await gateway.createApproval({ operator, approver: sg, proposalId: `PROP-${stamp}`, termsHash: `terms-${stamp}` }),
     ];
     const receipts = await gateway.executeProposal(operator, proposal, approvals);
     assert.equal(receipts.length, 2);

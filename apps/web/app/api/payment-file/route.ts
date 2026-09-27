@@ -25,9 +25,15 @@ export async function GET(request: Request) {
   const store = session.store;
   const proposal = store.proposals.find((p) => p.id === proposalId);
   if (!proposal) return NextResponse.json({ error: "Proposal not found" }, { status: 404 });
-  if (proposal.status !== "settled" || proposal.receipts.length === 0) {
+  if (proposal.status !== "settled") {
     return NextResponse.json(
       { error: "Payment file is available only after atomic settlement" },
+      { status: 409 },
+    );
+  }
+  if (proposal.receipts.length === 0) {
+    return NextResponse.json(
+      { error: "Nothing to pay: this proposal is fully netted, so no transfers were required." },
       { status: 409 },
     );
   }

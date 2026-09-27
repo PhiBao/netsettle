@@ -73,6 +73,31 @@ export function settlementBlockers(proposal: NettingProposal, now = new Date().t
     (key) => !proposal.approvals.some((a) => a.partyKey === key),
   );
   if (missing.length > 0) blockers.push(`Missing approvals: ${missing.join(", ")}`);
-  if (proposal.summary.residuals.length === 0) blockers.push("No residual transfers to execute");
   return blockers;
+}
+
+/**
+ * Canonical form of the proposal terms an approver signs over. The same
+ * function runs when the proposal is committed and when the approval is cast;
+ * the hash of this string travels in both contracts, and the ledger refuses
+ * execution when they disagree — an operator cannot swap terms after approval.
+ */
+export interface ProposalTerms {
+  proposalId: string;
+  currency: string;
+  obligationCids: string[];
+  residuals: Array<{ from: string; to: string; amountMinor: string }>;
+  requiredApprovers: string[];
+  expiresAt: string;
+}
+
+export function canonicalProposalTerms(terms: ProposalTerms): string {
+  return JSON.stringify({
+    proposalId: terms.proposalId,
+    currency: terms.currency,
+    obligationCids: [...terms.obligationCids],
+    residuals: terms.residuals.map((r) => [r.from, r.to, r.amountMinor]),
+    requiredApprovers: [...terms.requiredApprovers].sort(),
+    expiresAt: terms.expiresAt,
+  });
 }

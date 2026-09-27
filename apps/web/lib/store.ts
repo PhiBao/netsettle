@@ -24,6 +24,8 @@ export interface StoredObligation extends Obligation {
 export interface StoredProposal extends NettingProposal {
   ledgerCid?: string;
   ledgerApprovalCids: string[];
+  /** Canonical terms hash committed on-ledger (binds approvals to terms). */
+  termsHash?: string;
   receipts: SettlementReceipt[];
 }
 

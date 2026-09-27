@@ -40,12 +40,19 @@ export interface ProposalArgs {
   residuals: Array<{ from: string; to: string; amountMinor: string }>;
   requiredApprovers: string[];
   expiresAt: string;
+  /**
+   * Canonical hash of the proposal terms. Approvals carry the same value and
+   * the ledger refuses execution when they disagree — an operator cannot swap
+   * terms between approval and execution.
+   */
+  termsHash: string;
 }
 
 export interface ApprovalArgs {
   operator: string;
   approver: string;
   proposalId: string;
+  termsHash: string;
 }
 
 export interface ReceiptRecord {

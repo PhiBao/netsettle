@@ -46,13 +46,24 @@ decided the outcome; this file is what the treasury uploads to the bank."
 
 ## 3:45 Privacy check (60s)
 
-Switch subsidiary views. Acme SG sees only its own legs and its 2 receipts,
-with **ledger-verified counts** queried live as that party. State the boundary
-out loud:
+Switch subsidiary views. Acme SG sees only its own legs and its 2 receipts, with
+**an isolation proof queried live as that party**: every receipt involving it is
+readable, and every receipt in the same batch that does not involve it is absent.
+State the boundary out loud:
 
 > "Canton isn't magic here — the operator computes over the full graph, so the
 > operator sees everything. What Canton gives us is that subsidiaries are
 > private *from each other*, and settlement is atomic. That's the product."
+
+If a judge asks about the shared demo node: the check is deliberately scoped to
+this session's batch, because the node also carries other teams' and other runs'
+contracts — raw global counts would prove nothing. Same-batch visibility versus
+absence is the honest test, and it runs live against the ledger.
+
+Optional fifth beat (30s) if the audience is technical: ingest an all-circular
+CSV (DE→FR, FR→SG, SG→DE, equal amounts) and settle it — gross is fully netted,
+**zero transfers, zero receipts**, obligations archived in one commit. The
+payment-file endpoint correctly refuses with "nothing to pay".
 
 ## 4:45 Close (15s)
 

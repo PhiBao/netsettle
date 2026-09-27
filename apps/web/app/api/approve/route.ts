@@ -27,10 +27,17 @@ export async function POST(request: Request) {
     }
     const display = displayByKey.get(partyKey);
     if (!display) return NextResponse.json({ error: "Unknown party" }, { status: 400 });
+    if (!proposal.termsHash) {
+      return NextResponse.json(
+        { error: "Proposal has no terms hash — recreate it before approving." },
+        { status: 409 },
+      );
+    }
     const approvalCid = await ledger.gateway.createApproval({
       operator: ledger.operatorParty,
       approver: partyIdFor(display),
       proposalId: proposal.id,
+      termsHash: proposal.termsHash,
     });
     const updated = approveProposal(proposal, partyKey, display, new Date().toISOString());
     store.proposals[index] = {

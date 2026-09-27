@@ -28,11 +28,21 @@ interface Proposal {
   }>;
 }
 
+interface Verification {
+  verified: boolean;
+  ownReceipts: { visible: number; total: number };
+  othersReceipts: { hidden: number; total: number };
+  ownObligations: { visible: number; total: number };
+  othersObligations: { hidden: number; total: number };
+  scope: string;
+  reason?: string;
+}
+
 interface ViewData {
   party: string;
   obligations: Array<{ id: string; direction: string; counterparty: string; amountMinor: string; currency: string; status: string }>;
   receipts: Array<{ direction: string; counterparty: string; amountMinor: string; currency: string; ledgerReference: string }>;
-  verification: { verified: boolean; obligations?: number; receipts?: number; reason?: string };
+  verification: Verification;
 }
 
 const btn =
@@ -185,45 +195,64 @@ export default function ProposalPage() {
               </Card>
               <Card className="!border-mint/25">
                 <div className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-faint">
-                  Net settlement · {proposal.summary.residualCount} transfers
+                  Net settlement ·{" "}
+                  {proposal.summary.residualCount === 0
+                    ? "fully netted, no transfers"
+                    : `${proposal.summary.residualCount} transfers`}
                 </div>
                 <HeroNumber minor={proposal.summary.netMovedMinor} currency={proposal.currency} />
+                {proposal.summary.residualCount === 0 && (
+                  <p className="mt-3 text-[13px] text-mist">
+                    100% of gross offsets inside the group — settlement archives the
+                    obligations without moving money.
+                  </p>
+                )}
               </Card>
             </div>
 
-            <Card className="mt-4">
-              {proposal.ledgerCid && (
-                <p className="mb-4 text-[13px] text-faint">
-                  Proposal contract{" "}
-                  <code className="break-all font-mono text-[11px] text-mist">
-                    {proposal.ledgerCid}
-                  </code>
-                </p>
-              )}
-              <h3 className="mb-3 font-display text-[15px] font-semibold">Residual transfers</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[480px] text-sm">
-                  <thead>
-                    <tr className="border-b border-line text-left text-xs uppercase tracking-[0.08em] text-faint">
-                      <th className="px-3 py-2.5 font-semibold">From → To</th>
-                      <th className="px-3 py-2.5 text-right font-semibold">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {proposal.summary.residuals.map((r, i) => (
-                      <tr key={i} className="border-b border-line/50 last:border-0">
-                        <td className="px-3 py-2.5">
-                          {r.from} <span className="text-faint">→</span> {r.to}
-                        </td>
-                        <td className="tnum whitespace-nowrap px-3 py-2.5 text-right font-mono">
-                          {formatMinor(r.amountMinor, r.currency)}
-                        </td>
+            {proposal.summary.residuals.length > 0 && (
+              <Card className="mt-4">
+                {proposal.ledgerCid && (
+                  <p className="mb-4 text-[13px] text-faint">
+                    Proposal contract{" "}
+                    <code className="break-all font-mono text-[11px] text-mist">
+                      {proposal.ledgerCid}
+                    </code>
+                  </p>
+                )}
+                <h3 className="mb-3 font-display text-[15px] font-semibold">Residual transfers</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[480px] text-sm">
+                    <thead>
+                      <tr className="border-b border-line text-left text-xs uppercase tracking-[0.08em] text-faint">
+                        <th className="px-3 py-2.5 font-semibold">From → To</th>
+                        <th className="px-3 py-2.5 text-right font-semibold">Amount</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
+                    </thead>
+                    <tbody>
+                      {proposal.summary.residuals.map((r, i) => (
+                        <tr key={i} className="border-b border-line/50 last:border-0">
+                          <td className="px-3 py-2.5">
+                            {r.from} <span className="text-faint">→</span> {r.to}
+                          </td>
+                          <td className="tnum whitespace-nowrap px-3 py-2.5 text-right font-mono">
+                            {formatMinor(r.amountMinor, r.currency)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
+            {proposal.summary.residuals.length === 0 && proposal.ledgerCid && (
+              <p className="mt-4 text-[13px] text-faint">
+                Proposal contract{" "}
+                <code className="break-all font-mono text-[11px] text-mist">
+                  {proposal.ledgerCid}
+                </code>
+              </p>
+            )}
 
             <Card className="mt-4">
               <h3 className="mb-4 font-display text-[15px] font-semibold">Subsidiary approvals</h3>
@@ -264,7 +293,19 @@ export default function ProposalPage() {
                   </ul>
                 </Alert>
               )}
-              {settled && (
+              {settled && proposal.receipts.length === 0 && (
+                <Alert tone="success">
+                  <span className="font-semibold">
+                    Settled atomically — fully netted. Every position cancelled, so no
+                    transfers were required; obligations are archived.
+                  </span>
+                  <p className="mb-0 mt-3 text-[13px] opacity-90">
+                    No payment file: nothing moves through the bank. The atomic commit
+                    itself is the settlement.
+                  </p>
+                </Alert>
+              )}
+              {settled && proposal.receipts.length > 0 && (
                 <Alert tone="success">
                   <span className="font-semibold">
                     Settled atomically. {proposal.receipts.length} receipts issued; obligations
@@ -329,11 +370,20 @@ export default function ProposalPage() {
             {view && (
               <Pill tone={view.verification.verified ? "ok" : "bad"}>
                 {view.verification.verified
-                  ? `ledger-verified: ${view.verification.obligations} obligations · ${view.verification.receipts} receipts`
+                  ? view.verification.ownReceipts.total > 0
+                    ? `proven live: own receipts ${view.verification.ownReceipts.visible}/${view.verification.ownReceipts.total} readable · others' ${view.verification.othersReceipts.hidden}/${view.verification.othersReceipts.total} hidden`
+                    : "no settled batch in this session yet"
                   : "ledger verification unavailable"}
               </Pill>
             )}
           </div>
+          {view && (
+            <p className="mt-2 text-[13px] text-faint">
+              Isolation check scoped to {view.verification.scope}. The shared demo node
+              carries other runs&rsquo; contracts too; raw global counts would say
+              nothing about isolation, so the proof compares this batch only.
+            </p>
+          )}
           {view && (
             <div className="mt-4 overflow-x-auto">
               <p className="mb-3 text-sm">

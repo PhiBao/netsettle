@@ -27,13 +27,18 @@ template Obligation
 -- A subsidiary's approval of one specific proposal. Signed by the approver
 -- alone, observed by the operator, so any party can approve without needing
 -- the operator's authority at approval time.
+-- TERMSHASH binds the approval to the exact proposal terms (currency, obligation
+-- set, residual transfers, approver set, expiry). Execute refuses approvals whose
+-- hash does not match, so an operator cannot swap the proposal contents after
+-- approval was given.
 template Approval
   with
     operator : Party
     approver : Party
     proposalId : Text
+    termsHash : Text
   where
-    ensure proposalId /= ""
+    ensure proposalId /= "" && termsHash /= ""
     signatory approver
     observer operator
 
@@ -42,6 +47,9 @@ template Approval
 -- settlement. EXECUTE archives every listed obligation and issues one receipt
 -- per residual in a single atomic transaction: partial settlement is impossible
 -- by construction, because a failed sub-action aborts the whole transaction.
+-- A fully-netted cycle (every position cancels) carries an empty residual list
+-- and settles by archiving obligations with no transfers — the ideal outcome,
+-- not an error.
 template NettingProposal
   with
     operator : Party
@@ -51,8 +59,10 @@ template NettingProposal
     residuals : [(Party, Party, Int)]
     requiredApprovers : [Party]
     expiresAt : Time
+    -- Canonical hash of the terms above; approvers sign over this value.
+    termsHash : Text
   where
-    ensure proposalId /= "" && not (null obligationCids) && not (null residuals)
+    ensure proposalId /= "" && not (null obligationCids) && termsHash /= ""
     signatory operator
     observer requiredApprovers
 
@@ -66,6 +76,9 @@ template NettingProposal
         approvals <- mapA (\cid -> fetch cid) approvalCids
         let approvers = map (.approver) (filter (\a -> a.proposalId == proposalId) approvals)
         assertMsg "missing approvals" (all (`elem` approvers) requiredApprovers)
+        assertMsg
+          "approval does not cover these proposal terms"
+          (all (\a -> a.proposalId /= proposalId || a.termsHash == termsHash) approvals)
         mapA (\obligationCid -> exercise obligationCid Settle) obligationCids
         mapA
           (\(from, to, amount) ->

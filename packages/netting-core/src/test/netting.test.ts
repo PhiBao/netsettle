@@ -7,6 +7,7 @@ import {
 import { computeNetPositions, computeResiduals, findCycle, groupByCurrency, summarizeNetting } from "../netting.js";
 import {
   approveProposal,
+  canonicalProposalTerms,
   createProposal,
   isProposalEligible,
   resetProposalCounterForTests,
@@ -139,5 +140,55 @@ describe("proposals", () => {
     const expired = approveProposal(proposal, "ACME DE", "Acme DE", "2026-10-02T00:00:00Z");
     assert.equal(expired.status, "expired");
     assert.ok(settlementBlockers(expired, "2026-10-02T00:00:00Z").includes("Proposal expired"));
+  });
+
+  it("settles a fully-netted cycle with zero residual transfers", () => {
+    resetObligationCounterForTests();
+    resetProposalCounterForTests();
+    const { obligations } = ingestCsv(
+      "debtor,creditor,amount,currency,due_date,reference\n" +
+        "Acme DE,Acme FR,100000,USD,2026-10-31,INV-001\n" +
+        "Acme FR,Acme SG,100000,USD,2026-10-31,INV-002\n" +
+        "Acme SG,Acme DE,100000,USD,2026-10-31,INV-003\n",
+    );
+    const summary = summarizeNetting(obligations);
+    assert.equal(summary.grossMinor, "30000000");
+    assert.equal(summary.netMovedMinor, "0");
+    assert.equal(summary.residualCount, 0);
+
+    let proposal = createProposal(obligations, { expiresAt: "2026-11-30T00:00:00Z" });
+    assert.ok(
+      settlementBlockers(proposal, "2026-10-01T00:00:00Z").every((b) => !b.includes("residual")),
+      "a fully-netted proposal must not be blocked for having no transfers",
+    );
+    proposal = approveProposal(proposal, "ACME DE", "Acme DE", "2026-10-01T00:00:00Z");
+    proposal = approveProposal(proposal, "ACME FR", "Acme FR", "2026-10-01T00:00:00Z");
+    proposal = approveProposal(proposal, "ACME SG", "Acme SG", "2026-10-01T00:00:00Z");
+    assert.deepEqual(settlementBlockers(proposal, "2026-10-01T00:00:00Z"), []);
+  });
+
+  it("canonicalizes proposal terms deterministically", () => {
+    const terms = {
+      proposalId: "PROP-0001",
+      currency: "USD",
+      obligationCids: ["c1", "c2"],
+      residuals: [{ from: "DE", to: "FR", amountMinor: "100" }],
+      requiredApprovers: ["SG", "DE", "FR"],
+      expiresAt: "2026-11-30T00:00:00Z",
+    };
+    const canonical = canonicalProposalTerms(terms);
+    // Approver order does not change the hash; a different amount does.
+    assert.equal(
+      canonical,
+      canonicalProposalTerms({ ...terms, requiredApprovers: ["DE", "FR", "SG"] }),
+    );
+    assert.notEqual(
+      canonical,
+      canonicalProposalTerms({
+        ...terms,
+        residuals: [{ from: "DE", to: "FR", amountMinor: "101" }],
+      }),
+    );
+    assert.notEqual(canonical, canonicalProposalTerms({ ...terms, proposalId: "PROP-0002" }));
   });
 });

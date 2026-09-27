@@ -5,9 +5,16 @@
 set -euo pipefail
 cd "$(dirname "$0")/../daml"
 
+NAME=$(awk '/^name:/{print $2; exit}' daml.yaml)
+VERSION=$(awk '/^version:/{print $2; exit}' daml.yaml)
+if [ -z "$NAME" ] || [ -z "$VERSION" ]; then
+  echo "could not read name/version from daml/daml.yaml"; exit 1
+fi
+DAR=".daml/dist/${NAME}-${VERSION}.dar"
+
 dpm build 2>&1 | tail -2
-DAR=".daml/dist/daml-0.0.1.dar"
-PKG=$(dpm inspect-dar "$DAR" 2>/dev/null | grep -oE "^daml-0\.0\.1-[0-9a-f]{64}" | head -1 | sed 's/^daml-0.0.1-//')
+if [ ! -f "$DAR" ]; then echo "expected build artifact $DAR — check daml.yaml name/version"; exit 1; fi
+PKG=$(dpm inspect-dar "$DAR" 2>/dev/null | grep -oE "^${NAME}-${VERSION}-[0-9a-f]{64}" | head -1 | sed -E 's/^.*-([0-9a-f]{64})$/\1/')
 if [ -z "$PKG" ]; then echo "could not determine package id"; exit 1; fi
 
 BASE_URL="${CANTON_JSON_API_URL:-http://localhost:6864}"
@@ -16,8 +23,8 @@ curl -sf -X POST "$BASE_URL/v2/packages" \
   --data-binary "@$DAR" > /dev/null
 echo "uploaded package $PKG"
 
-# A rebuild keeps name+version ("daml 0.0.1") but changes the package id, which
-# would collide with the previously vetted build. Unvet older builds first.
+# A rebuild keeps name+version but changes the package id, which would collide
+# with the previously vetted build. Unvet older builds of this package first.
 python3 - "$BASE_URL" "$PKG" <<'EOF'
 import json, sys, urllib.request, urllib.error
 base, pkg = sys.argv[1], sys.argv[2]

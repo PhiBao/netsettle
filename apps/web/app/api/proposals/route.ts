@@ -4,6 +4,32 @@ import type { StoredObligation } from "@/lib/store";
 import { GatewayError } from "@netting/canton-gateway";
 import { getLedger, LedgerNotConfiguredError, partyIdFor } from "@/lib/ledger";
 import { getSessionStore, withSession } from "@/lib/store";
+import { proposalTermsHash } from "@/lib/terms";
+
+/**
+ * Create obligations on the ledger with bounded concurrency. A bucket of eight
+ * obligations is eight independent ledger submissions: sequential commits made
+ * the demo wait ~40s, which reads as "hung" to a first-time visitor. Four at a
+ * time is fast on the shared node without hammering it.
+ */
+async function mapLimit<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    for (;;) {
+      const index = next;
+      next += 1;
+      if (index >= items.length) return;
+      results[index] = await fn(items[index]);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
 
 export async function POST(request: Request) {
   const { expiresAt } = (await request.json().catch(() => ({}))) as { expiresAt?: string };
@@ -31,39 +57,58 @@ export async function POST(request: Request) {
       } catch (err) {
         return NextResponse.json({ error: String(err) }, { status: 409 });
       }
-      const cidByObligation = new Map<string, string>();
-      for (const o of bucket) {
-        const debtor = o.mappedDebtor ?? o.debtor;
-        const creditor = o.mappedCreditor ?? o.creditor;
-        const cid = await ledger.gateway.createObligation({
+      const cids = await mapLimit(bucket, 4, (o) =>
+        ledger.gateway.createObligation({
           operator: ledger.operatorParty,
-          debtor: partyIdFor(debtor),
-          creditor: partyIdFor(creditor),
+          debtor: partyIdFor(o.mappedDebtor ?? o.debtor),
+          creditor: partyIdFor(o.mappedCreditor ?? o.creditor),
           amountMinor: o.amountMinor,
           currency: o.currency,
           dueDate: o.dueDate,
           reference: o.reference ?? o.id,
-        });
-        cidByObligation.set(o.id, cid);
-        o.ledgerCid = cid;
+        }),
+      );
+      bucket.forEach((o, index) => {
+        o.ledgerCid = cids[index];
         o.status = "proposed";
-      }
+      });
+
+      const obligationCids = proposal.obligationIds.map(
+        (id) => bucket.find((o) => o.id === id)!.ledgerCid!,
+      );
+      const residuals = proposal.summary.residuals.map((r) => ({
+        from: partyIdFor(r.from),
+        to: partyIdFor(r.to),
+        amountMinor: r.amountMinor,
+      }));
+      const requiredApprovers = proposal.requiredApprovals.map((key) =>
+        partyIdFor(displayByKey.get(key)!),
+      );
+      const termsHash = proposalTermsHash({
+        proposalId: proposal.id,
+        currency: proposal.currency,
+        obligationCids,
+        residuals,
+        requiredApprovers,
+        expiresAt: proposal.expiresAt,
+      });
       const ledgerCid = await ledger.gateway.createProposal({
         operator: ledger.operatorParty,
         proposalId: proposal.id,
         currency: proposal.currency,
-        obligationCids: proposal.obligationIds.map((id) => cidByObligation.get(id)!),
-        residuals: proposal.summary.residuals.map((r) => ({
-          from: partyIdFor(r.from),
-          to: partyIdFor(r.to),
-          amountMinor: r.amountMinor,
-        })),
-        requiredApprovers: proposal.requiredApprovals.map((key) =>
-          partyIdFor(displayByKey.get(key)!),
-        ),
+        obligationCids,
+        residuals,
+        requiredApprovers,
         expiresAt: proposal.expiresAt,
+        termsHash,
       });
-      const stored = { ...proposal, ledgerCid, ledgerApprovalCids: [] as string[], receipts: [] as never[] };
+      const stored = {
+        ...proposal,
+        ledgerCid,
+        termsHash,
+        ledgerApprovalCids: [] as string[],
+        receipts: [] as never[],
+      };
       store.proposals.push(stored);
       created.push({ proposal: stored, ledgerCid });
     }

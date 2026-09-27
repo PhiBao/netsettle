@@ -32,7 +32,10 @@ export async function POST(request: Request) {
     for (const name of Object.keys(ledger.partyMap)) {
       partyIdToDisplay.set(ledger.partyMap[name], name);
     }
-    const receipts = await ledger.gateway.readReceipts(ledger.operatorParty);
+    // A fully-netted bucket issues no receipts: every position cancelled, so
+    // there is nothing to transfer. The atomic archival of obligations is the
+    // whole settlement.
+    const receipts = receiptCids.length > 0 ? await ledger.gateway.readReceipts(ledger.operatorParty) : [];
     const ours = receipts.filter((r) => receiptCids.includes(r.contractId));
     const displayReceipts = ours.map((r) => ({
       proposalId: proposal.id,
@@ -54,6 +57,7 @@ export async function POST(request: Request) {
     store.proposals[index] = { ...proposal, status: "settled", receipts: displayReceipts };
     return withSession(NextResponse.json({
       settled: true,
+      fullyNetted: displayReceipts.length === 0,
       receipts: displayReceipts,
       summary: {
         gross: formatMinor(proposal.summary.grossMinor, proposal.currency),

@@ -48,11 +48,14 @@ print("vetted", pkg[:12])
 EOF
 
 echo "allocate demo parties via Daml Script…"
-dpm script --dar .daml/dist/daml-0.0.1.dar \
+NAME=$(awk '/^name:/{print $2; exit}' daml.yaml)
+VERSION=$(awk '/^version:/{print $2; exit}' daml.yaml)
+DAR=".daml/dist/${NAME}-${VERSION}.dar"
+dpm script --dar "$DAR" \
   --script-name NettingTest:setupParties \
   --ledger-host localhost --ledger-port 6865 \
   --output-file /tmp/netting-parties.json > /dev/null 2>&1
-dpm script --dar .daml/dist/daml-0.0.1.dar \
+dpm script --dar "$DAR" \
   --script-name NettingTest:setupDemoExtra \
   --ledger-host localhost --ledger-port 6865 \
   --output-file /tmp/netting-party-us.json > /dev/null 2>&1

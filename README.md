@@ -154,7 +154,11 @@ flowchart LR
 ```
 
 Enforced by Daml signatories/observers, verified live per party via
-`/api/view` (ledger-queried counts, not UI assertions).
+`/api/view`: the endpoint queries the ledger as that party and proves isolation
+against this session's own batch — every receipt involving the party is readable,
+every same-batch receipt that does not involve it is absent. Raw ledger-wide
+counts are deliberately not used: the shared node also carries other runs'
+contracts, so they prove nothing about isolation.
 
 ---
 
@@ -167,7 +171,8 @@ Everything below is load-bearing — nothing here is a logo, and each row shows
 | Capability | Why the product needs it | How it works here |
 |---|---|---|
 | **Stakeholder privacy (Daml)** | Subsidiaries will never upload payables to a system where counterparties can read them — an AP file leaks suppliers, pricing, margins | `Obligation` is signed by operator + debtor and merely *observed* by the creditor; receipts are observed only by their two parties. Nobody else on the ledger sees them. Verified live per party via `/api/view` |
-| **Atomic multi-party execution** | Netting N obligations in gross means N chances for partial failure; a half-settled cycle is worse than none | `NettingProposal.Execute` archives every obligation and issues every receipt in a single transaction — one failed approval aborts the whole commit (`testExecuteBlocked` proves it) |
+| **Atomic multi-party execution** | Netting N obligations in gross means N chances for partial failure; a half-settled cycle is worse than none | `NettingProposal.Execute` archives every obligation and issues every receipt in a single transaction — one failed approval aborts the whole commit (`testExecuteBlocked` proves it). A fully-cancelling cycle settles with zero receipts: obligations archived, nothing moved (`testExecuteFullNetting`) |
+| **Approvals bound to terms** | An approval for "proposal 7" is worthless if proposal 7 can be rewritten after the fact | Every approval carries the SHA-256 of the canonical proposal terms; `Execute` refuses any approval whose hash doesn't match the contract being executed (`testExecuteBlockedOnTermsMismatch`). The operator cannot swap the deal between approval and settlement |
 | **Daml 3.x contracts** | The netting commit must be enforceable by the ledger, not by our backend's good behavior | `Obligation / Approval / NettingProposal / SettlementReceipt` in `daml/`; `dpm test` green |
 | **JSON Ledger API** | The treasury UI must create, approve, execute, and audit without running a node | Typed gateway (`packages/canton-gateway`): creates, choice exercises, template-filtered ACS reads, ledger-end offsets, Bearer + auto-refresh auth |
 | **Shared DevNet node (Noders)** | A hackathon claim of "atomic settlement" is only credible on shared infrastructure | Full flow settled on `hackcanton-01`: EUR €70k→€30k + USD $312k→$40k, receipts verified — see [DEVNET.md](./DEVNET.md) |
@@ -255,13 +260,16 @@ on the deterministic fallback and marks judgments for review.
 
 ## Verification evidence
 
-- `dpm test`: `testExecute` (2 receipts, obligations archived) and
-  `testExecuteBlocked` (missing approval fails, nothing partially settles).
+- `dpm test`: `testExecute` (2 receipts, obligations archived),
+  `testExecuteBlocked` (missing approval fails, nothing partially settles),
+  `testExecuteBlockedOnTermsMismatch` (full approvals with a different terms hash
+  cannot settle a rewritten proposal), and `testExecuteFullNetting` (a fully
+  cancelling cycle archives all obligations with zero transfers).
 - `packages/canton-gateway` live test (gated by `CANTON_*` env): full cycle
   against a real participant, asserting archival of exactly the created
   obligations.
-- `/api/view?party=` returns per-party ledger-verified counts alongside the
-  scoped view.
+- `/api/view?party=` returns the party-scoped view plus a same-batch isolation
+  proof queried live as that party (own receipts readable, others' absent).
 - `/api/payment-file?proposalId=` downloads the bank payment CSV (or
   `&format=pain001` for ISO 20022); totals reconcile exactly with the net
   settlement amount.

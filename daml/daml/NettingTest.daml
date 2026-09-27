@@ -61,15 +61,16 @@ createDemoProposal operator de fr sg obligations = script do
       residuals = [(de, fr, 2000000), (de, sg, 2000000)]
       requiredApprovers = [de, fr, sg]
       expiresAt = expiry
+      termsHash = "demo-terms-v1"
 
 approveAll : Party -> Party -> Party -> Party -> Script [ContractId Approval]
 approveAll operator de fr sg = script do
   a1 <- submit de do
-    createCmd Approval with operator, approver = de, proposalId = "PROP-0001"
+    createCmd Approval with operator, approver = de, proposalId = "PROP-0001", termsHash = "demo-terms-v1"
   a2 <- submit fr do
-    createCmd Approval with operator, approver = fr, proposalId = "PROP-0001"
+    createCmd Approval with operator, approver = fr, proposalId = "PROP-0001", termsHash = "demo-terms-v1"
   a3 <- submit sg do
-    createCmd Approval with operator, approver = sg, proposalId = "PROP-0001"
+    createCmd Approval with operator, approver = sg, proposalId = "PROP-0001", termsHash = "demo-terms-v1"
   return [a1, a2, a3]
 
 -- Allocate the fourth demo subsidiary for the web demo dataset.
@@ -97,12 +98,63 @@ testExecuteBlocked = script do
   obligations <- createDemoObligations operator de fr sg
   proposal <- createDemoProposal operator de fr sg obligations
   partial <- submit de do
-    createCmd Approval with operator, approver = de, proposalId = "PROP-0001"
+    createCmd Approval with operator, approver = de, proposalId = "PROP-0001", termsHash = "demo-terms-v1"
   submitMustFail operator do exerciseCmd proposal Execute with approvalCids = [partial]
   -- And the obligations are still live: nothing partially settled.
   remaining <- query @Obligation operator
   assert (length remaining == 3)
   -- Approvals for other proposals do not count either.
   decoy <- submit fr do
-    createCmd Approval with operator, approver = fr, proposalId = "PROP- decoy"
+    createCmd Approval with operator, approver = fr, proposalId = "PROP- decoy", termsHash = "demo-terms-v1"
   submitMustFail operator do exerciseCmd proposal Execute with approvalCids = [partial, decoy]
+
+-- Approvals are bound to the exact terms: a full set of approvals carrying a
+-- different terms hash must not settle, even though every approver signed.
+testExecuteBlockedOnTermsMismatch : Script ()
+testExecuteBlockedOnTermsMismatch = script do
+  (operator, de, fr, sg) <- setupParties
+  obligations <- createDemoObligations operator de fr sg
+  proposal <- createDemoProposal operator de fr sg obligations
+  bad <- mapA
+    (\(party, name) -> submit party do
+      createCmd Approval with
+        operator, approver = party, proposalId = "PROP-0001", termsHash = name)
+    [(de, "wrong-terms"), (fr, "wrong-terms"), (sg, "wrong-terms")]
+  submitMustFail operator do exerciseCmd proposal Execute with approvalCids = bad
+  remaining <- query @Obligation operator
+  assert (length remaining == 3)
+
+-- Fully-netted cycle: every position cancels, so there is nothing to transfer.
+-- Execution must still archive all obligations atomically, with zero receipts.
+testExecuteFullNetting : Script ()
+testExecuteFullNetting = script do
+  (operator, de, fr, sg) <- setupParties
+  now <- getTime
+  let due = toDateUTC now
+  -- A perfect cycle: DE -> FR -> SG -> DE, equal amounts.
+  o1 <- submitMulti [operator, de] [] do
+    createCmd Obligation with operator, debtor = de, creditor = fr, amountMinor = 1000000, currency = "USD", dueDate = due, reference = "FULL-1"
+  o2 <- submitMulti [operator, fr] [] do
+    createCmd Obligation with operator, debtor = fr, creditor = sg, amountMinor = 1000000, currency = "USD", dueDate = due, reference = "FULL-2"
+  o3 <- submitMulti [operator, sg] [] do
+    createCmd Obligation with operator, debtor = sg, creditor = de, amountMinor = 1000000, currency = "USD", dueDate = due, reference = "FULL-3"
+  expiry <- addRelTime <$> getTime <*> pure (days 30)
+  proposal <- submit operator do
+    createCmd NettingProposal with
+      operator
+      proposalId = "PROP-FULL"
+      currency = "USD"
+      obligationCids = [o1, o2, o3]
+      residuals = []
+      requiredApprovers = [de, fr, sg]
+      expiresAt = expiry
+      termsHash = "demo-terms-full"
+  approvals <- mapA
+    (\party -> submit party do
+      createCmd Approval with
+        operator, approver = party, proposalId = "PROP-FULL", termsHash = "demo-terms-full")
+    [de, fr, sg]
+  receipts <- submit operator do exerciseCmd proposal Execute with approvalCids = approvals
+  assert (null receipts)
+  remaining <- query @Obligation operator
+  assert (null remaining)
