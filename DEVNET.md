@@ -25,12 +25,15 @@ Upgrade sequence when vetting lands:
    # Confirm the built package id equals what was vetted, then point the app at it:
    dpm inspect-dar daml/.daml/dist/netsettle-0.1.0.dar | grep -oE 'netsettle-0\.1\.0-[0-9a-f]{64}' | head -1
    sed -i 's/^CANTON_PACKAGE_ID=.*/CANTON_PACKAGE_ID=<vetted package id>/' apps/web/.env.local
+   sed -i 's/^CANTON_TERMS_BINDING=.*/CANTON_TERMS_BINDING=on/' apps/web/.env.local
    sudo systemctl restart netsettle-web.service
    curl -s localhost:3100/api/state | grep -o '"packageId":"[^"]*"'
    ```
    Then run the full flow once (ingest → review → propose → approve → settle) and
    check `/api/view` before announcing. The parties stay the same; only the
-   package id changes.
+   package id changes. `CANTON_TERMS_BINDING=off` is what lets the app keep
+   serving the older package today: leave it off until the new package is
+   vetted, then flip it on with the id change.
 4. Keep the old package vetted for rollback; pointing `CANTON_PACKAGE_ID` back
    is the only rollback step.
 

@@ -213,7 +213,7 @@ reconciliation every cycle**.
 
 - **Metric:** **executed netting cycles per group per month** — one cycle = ingest → approvals → atomic settlement → bank file, for one group.
 - **Why this one:** it is the product's unit of value. Partial usage (uploads without settlement) or vanity traffic does not count; a cycle executed means a treasury team replaced the spreadsheet ritual for one month and will come back next month for a new reason: the accumulated mappings, disputes and counterparty graph.
-- **How you measure it:** on-ledger `SettlementReceipt` / `NettingProposal` executions per operator party (ledger is the source of truth), cross-checked with the app's session store. Today this is counted manually per demo run; we are adding counter instrumentation to the demo (no PII) before submission.
+- **How you measure it:** anonymous counters in the demo (`/api/metrics`: sessions, ingests, proposals, approvals, settlements, completed flows, payment-file downloads — no PII) cross-checked against on-ledger `SettlementReceipt` and `NettingProposal` contracts, which are the source of truth. Live on the public deployment.
 
 ### 2. What we needed to validate
 
@@ -246,17 +246,17 @@ of this product.
 ### 4. Tests and results
 
 - **What we tried:** (1) full product flow on the shared HackCanton DevNet, repeatedly; (2) malformed and hostile inputs (duplicate invoices, unknown counterparties, missing approvals, fully-circular cycles, replayed approvals); (3) public demo without instrumentation.
-- **What happened:** every created obligation archived at settlement (0 active on DevNet); **8 settlement receipts currently active on the shared DevNet** across ≈4 executed cycles; USD demo cycle $312,000 → $40,000 in 3 transfers; EUR €70,000 → €30,000 in 1; blocked settlements refused with the ledger untouched; a tampered-terms proposal could not settle.
+- **What happened:** **0 active obligations or proposals on DevNet — every cycle that was started is fully settled** — and **24 active settlement receipts** held by the four demo parties (counted 2026-09-27 by querying the ledger as each party); USD demo cycle $312,000 → $40,000 in 3 transfers; EUR €70,000 → €30,000 in 1; blocked settlements refused with the ledger untouched; a tampered-terms proposal could not settle; anonymous counters verified incrementing through the full flow on the public deployment.
 - **What we changed because of it:** proposal commits parallelized after measuring 40–60s per cycle; the privacy check reworked after we watched raw shared-node counts mislead (now proves isolation against the session's own batch); approvals bound to a proposal-terms hash after adversarial review; fully-netted cycles made first-class after edge-case testing; bootstrap made idempotent after cold-start failures.
 
 ### 5. Product and on-ledger metrics
 
 | Metric | How we measure it | Now | Target by submission |
 | --- | --- | --- | --- |
-| Users who tried the demo | demo instrumentation (counter, no PII) — **not built yet** | 0 measured | counter live + ≥10 external sessions |
-| Users who completed the core flow | settle events per session | 0 measured | ≥5 completions (any external) |
-| Settlements executed on DevNet | `SettlementReceipt` contracts + proposals | **4 cycles / 8 receipts active** | ≥25 cycles (judges' runs count) |
-| Active parties | operator + subsidiaries on DevNet | **5** | 5 held (party allocation is operator-gated) |
+| Users who tried the demo | anonymous counters at `/api/metrics` (no PII) — **live** | counter live; sessions increment on first visit | ≥25 external sessions (judges' and mentors' runs count) |
+| Users who completed the core flow | completed-flow counter (first settlement per session) | **1 measured** in the deploy-verification run | ≥5 external completions |
+| Settlements executed on DevNet | `SettlementReceipt` contracts + proposals | **24 active receipts; 0 active obligations (all started cycles fully settled)** | ≥40 receipts (judges' runs count, nothing left half-settled) |
+| Active parties | operator + subsidiaries on DevNet | **5** (operator + 4 subsidiaries) | 5 held (party allocation is operator-gated) |
 | Tests green | `pnpm -r test` + `dpm test` | 20 core / 6 TypeSafe / 7 gateway / 6 Daml | stay green + route-level tests |
 
 ### 6. Success criteria after the hackathon
