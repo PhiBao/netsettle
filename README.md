@@ -199,10 +199,13 @@ Everything below is load-bearing — nothing here is a logo, and each row shows
 | **TypeSafe (AI track)** | Treasury CSVs are messy in ways regex can't cover: `Acme france`, duplicate-ish refs, cryptic memos | Roster mapping, memo classification, duplicate probability, batch triage — each confidence-gated to human review with deterministic fallback (`packages/typesafe-judgments`, 6 tests) |
 | **Season 3 program** | A product without a track, spine, and users is a demo | Track 1; Value→ICP→Metrics→GTM→MVP→Pitch mapped in [PITCH.md](./PITCH.md); shared-node endpoints from the materials |
 
-Explicitly **not** used (and why): Grofty wallet bounty (our approvals are
-server-mediated in the MVP; wallet-signed approvals via CIP-103 are roadmap),
-OneSwap/AMM infra (no trading in a netting product), new tokens (the payment
-file carries value through existing rails — minting one would be a gimmick).
+Explicitly **not** used (and why): Grofty wallet bounty (MainNet-only and
+invitation-gated; our approvals are server-mediated in the MVP, wallet-signed
+approvals via CIP-103 are roadmap), BitSafe challenge (a Decentralized Party
+requires the Decentralization Manager plus a node the shared hackathon DevNet
+cannot host; scoped in SUBMISSION.md, not claimed), OneSwap/AMM infra (no
+trading in a netting product), new tokens (the payment file carries value
+through existing rails — minting one would be a gimmick).
 
 ---
 

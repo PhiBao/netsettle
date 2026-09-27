@@ -23,12 +23,48 @@ Checklist the platform tracks (`Publish for Judging` panel):
 
 **Elevator pitch (paste):**
 
-> Multinational subsidiaries owe each other millions every month — much of it circular, so the group settles cash that mathematically cancels. NetSettle ingests intercompany payables, resolves messy counterparty names against the subsidiary roster, compresses offsetting cycles, collects per-subsidiary approvals, and settles the residual in one atomic Canton transaction where each subsidiary sees only its own legs. Settlement ends in a bank-ready payment file (CSV + ISO 20022 pain.001). Demo: $312,000 across 6 invoices settles as $40,000 in 3 transfers; €70,000 as €30,000 in 1 — and a fully-circular cycle settles with zero transfers. Live on the shared HackCanton DevNet.
+> Subsidiaries of multinational groups owe each other millions every month — much
+> of it circular, so the group moves cash that mathematically cancels. They do it
+> anyway, because payables files are confidential and a half-settled cycle is
+> worse than none.
+>
+> NetSettle turns that monthly spreadsheet-and-email ritual into one operation:
+> ingest intercompany payables, resolve messy counterparty names against the
+> subsidiary roster with confidence-gated judgments, catch duplicates, compress
+> offsetting cycles per currency, collect per-subsidiary approvals, and settle the
+> residual in a single atomic Canton transaction where each subsidiary sees only
+> its own legs. Out comes a bank-ready payment file (CSV + ISO 20022 pain.001).
+>
+> Live demo: $312,000 across six invoices settles as $40,000 in three transfers,
+> €70,000 as €30,000 in one — and a fully-circular cycle settles with zero
+> transfers, obligations archived atomically.
+
+**Shorter variant (if the field is tight):**
+
+> NetSettle compresses the monthly intercompany netting cycle into one atomic
+> Canton transaction. It ingests group payables, resolves messy counterparty
+> names, catches duplicates, nets offsetting cycles per currency, collects
+> per-subsidiary approvals, and settles the residual all-or-nothing — each
+> subsidiary seeing only its own legs — before exporting a bank-ready payment
+> file. Demo: $312k gross settles as $40k in three transfers; a fully-circular
+> cycle settles with zero.
 
 **Track:** Real-World Asset (RWA) & Business Workflows
 
-**Tech stack:** Daml, Canton JSON Ledger API, DevNet, Next.js, TypeScript, Tailwind,
-TypeSafe System One judgments, ISO 20022 pain.001
+**Tech Stack (tags):**
+
+```text
+Daml
+Canton Network
+Canton JSON Ledger API
+TypeScript
+Next.js
+React
+Tailwind CSS
+Node.js
+TypeSafe System One
+ISO 20022 pain.001
+```
 
 **Demo URL:** https://100-30-125-235.nip.io
 **Repo:** https://github.com/PhiBao/netsettle
@@ -228,6 +264,54 @@ shared node, so the recording cannot be spoiled by other teams' traffic.
 | 3:00–3:40 | Privacy + close | Switch subsidiary views: own legs only; isolation verified live as that party. Close on the wedge and the trust boundary |
 
 ---
+
+## Sponsor challenges — current eligibility (checked 2026-09-28)
+
+**Bottom line: do not tag either challenge yet.** Both requirement sets are
+public; tagging without meeting them means being judged against them and scored
+down. Neither is currently satisfied by NetSettle.
+
+### BitSafe — Decentralizing Apps on Canton (50,000 CC)
+
+Eligibility paths:
+
+| Path | Requirement | NetSettle today | Verdict |
+|---|---|---|---|
+| Contribution pool (20,000 CC, 2 teams) | Reproducible **LocalNet demo** of an application integration with the Decentralization Manager, a custom module, or an open-source contribution | Nothing integrates with the Decentralization Manager | ❌ not eligible yet |
+| Gold (30,000 CC) | A **Decentralized Party deployed on DevNet or MainNet**, integrated into a working application; apply by Oct 4 | No Decentralized Party; the shared hackathon DevNet explicitly cannot host teams' Decentralized Parties, and we have no own node | ❌ not feasible in time |
+
+To become eligible for the contribution pool, the honest minimum is: run the
+Decentralization Manager locally, make the **netting operator** a Decentralized
+Party (2-of-3 hosts, no single host can execute settlement), wire one governed
+action to it (execute settlement), and ship a clean-room reproducible LocalNet
+demo. Estimate 3–5 focused days, judged on reproducibility and whether it
+addresses a real risk. Decision rule: only start it after the platform
+submission is published and validation outreach is running, and no later than
+Oct 4 (so there is a week to finish). Do **not** apply for Gold — applying for
+Gold forfeits the contribution pool.
+
+### Grofty Wallet Bounty (10,000 CC, 3 places)
+
+Requirements: Grofty Wallet in the **core** flow via CIP-0103 or the dApp SDK
+(connect/sign/transact, not a link), end-to-end demo on **Canton MainNet**, a
+public repo documenting the integration, and a ≤3 min video.
+
+Blockers for NetSettle, in order of severity:
+
+1. **MainNet only** — no testnet/devnet mode; every approval moves real funds.
+   We have DevNet credentials only and no MainNet participant to host the
+   operator party the flow needs.
+2. **Single-party submission** — Grofty submits only as the connected party
+   (`actAs` refused); our operator service submits as all parties. A valid
+   integration means subsidiaries sign their own approvals from their own
+   wallets — our roadmap, but it changes the architecture, not a bolt-on.
+3. **Invitation-only access** — requested "in the first days of the hackathon";
+   we are past the midpoint with no access request on record.
+
+Verdict: ❌ **skip.** The architecture mismatch plus MainNet requirement cannot
+be resolved by Oct 9 for a solo team without a node. Saying this explicitly in
+the pitch Q&A is better than a shallow integration that scores 1–2 on
+"integration depth".
 
 ## Open items before Oct 9 (21:59 UTC)
 
