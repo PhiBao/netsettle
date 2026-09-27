@@ -30,7 +30,7 @@ Upgrade sequence when vetting lands:
 > We hardened our Daml contracts (approvals now bind to a proposal-terms hash,
 > and fully-netted cycles settle with zero transfers) and need the new build
 > vetted on `hackcanton-01`: package id
-> `852ace2aeb9473cece29f709392f540c0fecd5280d52edac2caf08c1b77faa6a`, same
+> `33437385a5fee4b60b50948f66b2e60cf5b9562227ca78b350cb04e0bb3cd199`, same
 > name/version `netsettle-0.1.0`, uploaded via the Console. Our existing
 > operator + 4 subsidiary parties can stay as they are. Thanks!
 

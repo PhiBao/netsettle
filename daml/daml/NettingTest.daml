@@ -2,18 +2,30 @@ module NettingTest where
 
 import Daml.Script
 import DA.Date (toDateUTC)
+import DA.List (find)
+import DA.Text (isInfixOf)
 import DA.Time (addRelTime, days)
 import Netting
+
+-- Idempotent allocation: reuse any party already on the ledger with this hint.
+-- Re-running the bootstrap against a live sandbox (or restarting the app in a
+-- demo session) must not fail with "party already exists".
+allocateOrReuse : Text -> Script Party
+allocateOrReuse hint = do
+  known <- listKnownParties
+  case find (\p -> hint `isInfixOf` show p.party) known of
+    Some details -> pure details.party
+    None -> allocateParty hint
 
 -- Canonical demo: DE -> FR 100k, FR -> SG 80k, SG -> DE 60k (USD minor units).
 -- Net: DE owes 40k; FR is owed 20k; SG is owed 20k.
 -- Expected residuals: DE -> FR 20k, DE -> SG 20k.
 setupParties : Script (Party, Party, Party, Party)
 setupParties = script do
-  operator <- allocateParty "TreasuryOps"
-  de <- allocateParty "AcmeDE"
-  fr <- allocateParty "AcmeFR"
-  sg <- allocateParty "AcmeSG"
+  operator <- allocateOrReuse "TreasuryOps"
+  de <- allocateOrReuse "AcmeDE"
+  fr <- allocateOrReuse "AcmeFR"
+  sg <- allocateOrReuse "AcmeSG"
   return (operator, de, fr, sg)
 
 createDemoObligations : Party -> Party -> Party -> Party -> Script [ContractId Obligation]
@@ -75,8 +87,7 @@ approveAll operator de fr sg = script do
 
 -- Allocate the fourth demo subsidiary for the web demo dataset.
 setupDemoExtra : Script Party
-setupDemoExtra = script do
-  allocateParty "AcmeUS"
+setupDemoExtra = allocateOrReuse "AcmeUS"
 
 -- Positive path: full approvals, atomic execution, two receipts, obligations gone.
 testExecute : Script ()
