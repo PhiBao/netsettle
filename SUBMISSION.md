@@ -74,64 +74,149 @@ ISO 20022 pain.001
 
 ## 1. Value / Problem statement
 
-Subsidiaries of one group owe each other money every month: cross-border
-intercompany payables for goods, services, loans and tax settlements. Much of
-that debt is circular — A owes B, B owes C, C owes A — so a large share of the
-cash the group moves cancels out arithmetically. Groups still settle it gross.
+### 1. The problem in one sentence
 
-Two things make the problem hard, and both are structural rather than technical:
+**Group treasury teams at multinationals** struggle to **settle intercompany
+payables net** because **subsidiary payables are confidential and multilateral
+settlement must be all-or-nothing**, which costs them **working capital trapped
+in circular debt, avoidable FX and bank fees, and days of spreadsheet
+reconciliation every cycle**.
 
-1. **Nobody will publish their payables ledger.** An AP file reveals suppliers,
-   pricing and margins. Any netting system that means "upload everything to a
-   shared database" asks every subsidiary to hand its counterparties an
-   information advantage.
-2. **A half-settled cycle is worse than no settlement.** Multilateral netting is
-   all-or-nothing: if some legs execute and others fail, the group recreates the
-   exact settlement risk it was trying to remove.
+### 2. The value you create
 
-The monthly cycle still runs on spreadsheets and email. The ROI is well
-documented — cross-border intercompany transfers are reducible by up to 70% —
-but the trust mechanics have kept netting an enterprise-TMS or settlement-bank
-feature, out of reach for mid-market groups.
+| | Today | With NetSettle |
+| --- | --- | --- |
+| **What the user does** | Exports payables entity by entity, reconciles counterparty names by hand, emails a spreadsheet around, settles every invoice gross through the bank, then reconciles confirmations afterwards | Uploads the month's payables once; messy names are matched against the roster with confidence gates, duplicates are caught, cycles are compressed per currency, each subsidiary approves its own legs, and one atomic commit settles the residual |
+| **Time / cost / risk** | Days per cycle across treasury and entities; every invoice moves as a bank payment including the circular part that cancels; fees and FX on every leg; spreadsheet + email is the audit trail; a half-settled cycle recreates settlement risk | First cycle in an afternoon, then under an hour; $312,000 gross settles as $40,000 in three transfers (5 of 6 payments eliminated), €70,000 as €30,000; fees only on residuals; each receipt links the netting decision to the bank payment; settlement is all-or-nothing by construction |
 
-**What canton changes:** stakeholder-scoped visibility means a subsidiary only
-ever sees contracts it is a party to, and one atomic transaction can archive
-every obligation in a cycle and issue every receipt — or abort entirely.
+- **Value proposition in one line:** NetSettle compresses the monthly
+  intercompany netting cycle into one atomic Canton transaction — subsidiaries
+  private from each other — and hands treasury a bank-ready payment file.
+- **Why users would switch from what they do today:** no ERP project, no
+  settlement-bank principal in the middle, no new token, and the first cycle
+  pays for itself in eliminated transfers. The output is a CSV + ISO 20022
+  pain.001 file treasury already knows how to upload.
 
-**Who pays:** group treasury operations. They already pay for TMS modules and
-bank netting services, and 84% of companies invested in payment operations in
-the last 12–18 months.
+### 3. Why it matters
+
+- **Cost of the problem:** 88% of finance decision-makers report
+  payment-operations problems and 51% still do up to half of payment operations
+  manually (Modern Treasury/Harris 2025); only 1 in 9 have fully automated
+  disbursements (Deluxe/Strategic Treasurer 2025). Netting is documented to cut
+  cross-border intercompany transfers **by up to 70%** and FX hedge trades by up
+  to 75% (GTreasury/Ripple material; Treasury Today). Document handling alone
+  can force monthly cycles: one pharma case needs physical invoice copies,
+  customs references and bank document review taking a week or longer (TIS via
+  Treasury Today, 2025).
+- **How many people or companies have it:** every group with more than one
+  legal entity and cross-border intercompany flows. Beachhead: mid-market
+  multinationals, 5–50 entities, 10–200 intercompany invoices per month.
+- **Evidence:** sourced surveys and named treasurers (Weir Group, Bandwidth,
+  Innospec) in [VALIDATION.md](./VALIDATION.md); quantified results from our own
+  live demo (gross → net → receipts); no fabricated interviews — operator
+  conversations are logged as they happen, with the outreach kit in
+  [OUTREACH.md](./OUTREACH.md).
+
+### 4. Why now
+
+- **What changed:** Canton's stakeholder-scoped privacy plus atomic multi-party
+  execution became practical for a small team through Daml 3.x and the JSON
+  Ledger API; the Season-3 shared DevNet removed the infrastructure barrier (we
+  settled the full cycle on it); and System One judgment primitives make messy
+  treasury input (names, duplicates, memos) tractable without an ML project.
+- **Why this couldn't be solved well before:** netting required either a
+  settlement bank as central counterparty (principal risk and fees) or an
+  enterprise TMS module plus a multi-month implementation project — neither
+  accessible to mid-market groups. The trust mechanics (confidential payables +
+  all-or-nothing execution) kept netting an enterprise-only feature.
+
+### 5. Why Canton
+
+- **What Canton makes possible here:** privacy *between* parties — an
+  `Obligation` is signed by operator + debtor and merely observed by the
+  creditor, receipts only by their two parties — so subsidiaries never see each
+  other's payables; atomic multi-party execution — one transaction archives
+  every obligation and issues every receipt, or nothing happens; and approvals
+  bound to a terms hash, so the terms cannot be swapped after approval. The
+  privacy proof queries the ledger live as each party, so judges can check the
+  claim rather than take it on faith.
+- **Why a public chain or a plain database wouldn't do:** a shared database
+  gives every participant the same read (the AP file leaks suppliers, pricing
+  and margins); a transparent chain makes the group's netting graph public; a
+  settlement bank inserts a principal and reconciles after the fact. Honest
+  boundary: the operator computing over the full graph still sees everything —
+  the same trust position as today's netting center, minus the intermediary.
+
+### Checklist
+
+- [x] The problem fits in one sentence
+- [x] It names a specific user, not "everyone"
+- [x] The value is shown as a before and after
+- [x] There is evidence the problem is real
+- [x] "Why now" is answered
+- [x] It's clear why this belongs on Canton
 
 ---
 
 ## 2. ICP / Audience definition
 
-**Primary user — Group Treasury Operations Manager** at a multinational with
-5–50 legal entities and a monthly intercompany cycle:
+### 1. The user in one sentence
 
-- runs the netting cycle in Excel today; reconciles by email;
-- measured on trapped cash, FX/bank fees, and cycle time;
-- cannot mandate ERP changes across subsidiaries;
-- buys tools that produce a bank-ready output and do not require an
-  implementation project.
+**Group treasury operations managers at mid-market multinationals** need to
+**settle what their subsidiaries owe each other every month** but **cannot force
+entities onto a shared ledger or ask them to expose their payables**, so they
+**run the cycle in Excel and email, settle gross, and reconcile afterwards**.
 
-**Secondary users — Subsidiary finance approvers** (controllers/CFOs of
-subsidiaries): they approve their legs and must be certain no other subsidiary
-sees their payables.
+### 2. Who they are
 
-**Beachhead: one corporate group.** One signature onboards every subsidiary; the
-group is the unit of adoption, not the entity. Initial segment: mid-market groups
-with cross-border entities (EU/US/APAC), 10–200 monthly intercompany invoices,
-already using a TMS or a bank for payments.
+| | |
+| --- | --- |
+| **Primary user** | Group Treasury Operations Manager / Head of Treasury Operations |
+| **Company shape** | Multinational group, 5–50 legal entities, cross-border intercompany flows (EU/US/APAC), 10–200 intercompany invoices per month |
+| **Context** | Monthly netting cycle owned by a 3–8 person treasury team; entities run different ERPs |
+| **Measured on** | Trapped working capital, FX and bank fees, cycle time, audit findings |
+| **Current behaviour** | Excel + email cycle; everything settles gross; reconciliation after the fact |
+| **Secondary users** | Subsidiary finance approvers (controllers/CFOs) who sign off their own legs and must be certain no counterparty sees their payables |
+| **Economic buyer** | Group Treasurer / Head of Treasury Ops; payment-operations budget (84% of companies invested in it over the last 12–18 months) |
+| **Not the user** | Mega-corporates committed to a TMS module; single-entity groups; crypto-native treasuries |
 
-**Why now:** Canton's JSON Ledger API + Daml 3.x make a small team able to ship a
-real multi-party workflow in weeks; the shared DevNet removes infrastructure
-friction; TypeSafe's System One judgments make messy treasury input tractable
-without an ML project.
+### 3. What they need — and what kills a deal
 
-**Non-goals:** we do not move money, hold funds, or replace the ERP. NetSettle
-compresses the decision and produces the bank file; value moves through existing
-rails.
+- **Must have:** bank-ready output (CSV + pain.001), no ERP project, entity-level
+  privacy, an audit trail that survives internal audit and tax review.
+- **Nice to have:** scheduled cycles, ERP import formats, dispute workflow,
+  multi-currency (FX-aware netting is roadmap — quoted rates only, never
+  invented).
+- **Dealbreakers:** payables leaving the group's control, opaque math, a
+  half-settled cycle, or requiring every entity to adopt new software.
+
+### 4. Why they adopt
+
+- **Trigger:** a painful cycle (late invoices, disputes, month-end pressure) or
+  a mandate to cut cross-border payment costs.
+- **First moment of value:** upload one month of payables and see gross → net in
+  minutes, with the circular part explained — no integration required.
+- **Wedge to expansion:** one group is the unit of adoption; one signature
+  onboards every subsidiary; cycles, entities and currencies expand from there.
+
+### 5. Beachhead and expansion
+
+- **Beachhead:** one mid-market group's monthly cycle — CSV in, bank file out.
+- **Expansion:** more entities/currencies per group → FX-aware netting with a
+  quoted-rate oracle → netting-center-as-a-service for mid-caps without
+  treasury IT.
+
+### Checklist
+
+- [x] A specific user, not "everyone"
+- [x] Names both the approver and the buyer
+- [x] Current behaviour and why it persists
+- [x] Must-haves and dealbreakers stated
+- [x] Beachhead is one group; expansion path defined
+
+> Non-goals: we do not move money, hold funds, or replace the ERP. NetSettle
+> compresses the decision and produces the bank file; value moves through the
+> existing banking rails.
 
 ---
 
