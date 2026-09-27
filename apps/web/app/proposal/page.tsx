@@ -22,6 +22,7 @@ interface Proposal {
   approvals: Array<{ partyKey: string; party: string; approvedAt: string }>;
   status: string;
   ledgerCid?: string;
+  termsHash?: string;
   receipts: Array<{
     transfer: { from: string; to: string; amountMinor: string; currency: string };
     ledgerReference: string;
@@ -49,6 +50,23 @@ const btn =
   "rounded-xl border border-line bg-panel2 px-4 py-2 text-sm font-semibold text-text transition hover:border-mint/60 disabled:opacity-45";
 const btnPrimary =
   "rounded-xl bg-mint px-5 py-2.5 text-sm font-semibold text-mintdeep transition hover:brightness-110 disabled:opacity-45";
+
+/**
+ * The DevNet node is shared by every team, so a transient write failure is
+ * normal and says nothing about the product. Keep the message short and
+ * actionable, with the raw ledger detail appended for debugging.
+ */
+function friendlyLedgerError(data: { error?: string; message?: string }): string {
+  const detail = data.message ?? data.error ?? "Request failed";
+  if (
+    data.error === "ledger_write_failed" ||
+    data.error === "settlement_failed" ||
+    data.error === "approval_failed"
+  ) {
+    return `The shared DevNet node did not accept that write — nothing was changed. Retry in a few seconds.\n\nLedger detail: ${detail}`;
+  }
+  return detail;
+}
 
 function HeroNumber({ minor, currency, struck }: { minor: string; currency: string; struck?: boolean }) {
   const formatted = formatMinor(minor, currency);
@@ -119,7 +137,7 @@ export default function ProposalPage() {
           setBlockers((b) => ({ ...b, [proposalId]: data.blockers }));
           return null;
         }
-        throw new Error(data.message ?? data.error ?? "Request failed");
+        throw new Error(friendlyLedgerError(data));
       }
       await refresh();
       return data;
@@ -198,7 +216,7 @@ export default function ProposalPage() {
                   Net settlement ·{" "}
                   {proposal.summary.residualCount === 0
                     ? "fully netted, no transfers"
-                    : `${proposal.summary.residualCount} transfers`}
+                    : `${proposal.summary.residualCount} transfer${proposal.summary.residualCount === 1 ? "" : "s"}`}
                 </div>
                 <HeroNumber minor={proposal.summary.netMovedMinor} currency={proposal.currency} />
                 {proposal.summary.residualCount === 0 && (
@@ -210,16 +228,33 @@ export default function ProposalPage() {
               </Card>
             </div>
 
-            {proposal.summary.residuals.length > 0 && (
-              <Card className="mt-4">
+            {(proposal.ledgerCid || proposal.termsHash) && (
+              <div className="mt-4 space-y-1 text-[13px] text-faint">
                 {proposal.ledgerCid && (
-                  <p className="mb-4 text-[13px] text-faint">
+                  <p>
                     Proposal contract{" "}
                     <code className="break-all font-mono text-[11px] text-mist">
                       {proposal.ledgerCid}
                     </code>
                   </p>
                 )}
+                {proposal.termsHash && (
+                  <p>
+                    Terms hash{" "}
+                    <code
+                      className="font-mono text-[11px] text-mist"
+                      title={proposal.termsHash}
+                    >
+                      {proposal.termsHash.slice(0, 24)}…
+                    </code>{" "}
+                    — every approval is bound to this hash; a rewritten proposal
+                    cannot settle with approvals for the original terms.
+                  </p>
+                )}
+              </div>
+            )}
+            {proposal.summary.residuals.length > 0 && (
+              <Card className="mt-4">
                 <h3 className="mb-3 font-display text-[15px] font-semibold">Residual transfers</h3>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[480px] text-sm">
@@ -247,10 +282,8 @@ export default function ProposalPage() {
             )}
             {proposal.summary.residuals.length === 0 && proposal.ledgerCid && (
               <p className="mt-4 text-[13px] text-faint">
-                Proposal contract{" "}
-                <code className="break-all font-mono text-[11px] text-mist">
-                  {proposal.ledgerCid}
-                </code>
+                Fully netted: no residual transfers to list. Obligations are
+                archived when the proposal executes.
               </p>
             )}
 
@@ -308,8 +341,9 @@ export default function ProposalPage() {
               {settled && proposal.receipts.length > 0 && (
                 <Alert tone="success">
                   <span className="font-semibold">
-                    Settled atomically. {proposal.receipts.length} receipts issued; obligations
-                    archived.
+                    Settled atomically. {proposal.receipts.length}{" "}
+                    {proposal.receipts.length === 1 ? "receipt" : "receipts"} issued;
+                    obligations archived.
                   </span>
                   <ul className="mt-2 space-y-1.5">
                     {proposal.receipts.map((r) => (

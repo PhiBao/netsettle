@@ -236,3 +236,58 @@ shared node, so the recording cannot be spoiled by other teams' traffic.
 - [ ] Send the outreach touches; log real conversations in the table.
 - [ ] Keep the daily platform journal/activity streak alive (mentors and judges read it).
 - [ ] Noders ask: vet the hardened package, then upgrade the live demo (DEVNET.md).
+
+---
+
+## Appendix — journal entries to paste (one per day, adapt to what actually happened)
+
+The platform journal is read by mentors and judges and is part of the evaluation.
+Write in first person, lead with what changed, and always name the evidence
+(commit, test, contract ID, conversation). Never claim a conversation that
+did not happen.
+
+**Entry 1 — what we're building and where it stands**
+
+> NetSettle (Track 1): the monthly intercompany netting cycle, compressed into
+> one atomic Canton transaction. Today the full flow runs on the shared
+> HackCanton DevNet: 10 payables ingested → 8 eligible → USD $312k gross settles
+> as $40k in 3 transfers, EUR €70k as €30k in 1, with real receipt contract IDs
+> and a pain.001 file whose control sums reconcile. Next: harden the approval
+> model and the demo's failure paths.
+
+**Entry 2 — the hardening that came out of asking "what would a skeptic attack?"**
+
+> Spent the day on the two weakest claims. (1) An approval used to reference a
+> proposal by id — the operator could have swapped the terms after approval. Now
+> every approval carries a SHA-256 of the canonical terms, and `Execute` refuses
+> mismatches; `testExecuteBlockedOnTermsMismatch` proves it. (2) A fully-circular
+> cycle was rejected as "no transfers" — the best possible outcome treated as an
+> error. Now it settles with zero receipts and archives all obligations
+> (`testExecuteFullNetting`). Tests went 4 → 6.
+
+**Entry 3 — made the demo reproducible from zero**
+
+> A judge should be able to clone, run one command, and get a working ledger.
+> Found and fixed real breakage: the sync script referenced a DAR name that no
+> longer existed, the sandbox answers HTTP before it accepts package uploads
+> (now retried), party allocation failed on a second run (now idempotent), and
+> the bootstrap assumed `.env.local` already existed. Verified cold-start,
+> warm-start, and no-file runs. Test counts now 20 core / 6 TypeSafe / 7 gateway
+> / 6 Daml, plus a clean typecheck and build.
+
+**Entry 4 — validation: what operators actually say (replace with real notes)**
+
+> Sent [N] outreach touches to treasury operators and TMS consultants; held [N]
+> conversations. Recurring themes: [verbatim quote 1] and [verbatim quote 2].
+> Strongest objection so far: [objection]. Pilot willingness: [N]/5. Nothing
+> here replaces the surveyed pain numbers, but it tells us which part of the
+> pitch to lead with. Log: [link].
+
+**Entry 5 — judging-ready and what's next**
+
+> Submission materials complete: five platform assets, a 9-slide deck, the
+> business brief, and the pilot plan. The live demo runs on the shared DevNet;
+> the hardened package is with the Noders team for vetting. Next after the
+> hackathon: five operator conversations logged, pilot design with one group
+> treasury, and wallet-signed approvals so subsidiaries sign with their own keys
+> instead of a server-mediated click.

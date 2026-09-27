@@ -19,6 +19,18 @@ Demo: **10 payables rows ingested → 8 eligible across two currency buckets**
 (one near-duplicate dropped in review, one unknown counterparty excluded):
 USD bucket $312,000 gross → $40,000 net in 3 transfers; EUR bucket €70,000
 gross → €30,000 net in 1 transfer. No FX conversion — like offsets like.
+A fully-circular bucket settles with **zero transfers** — obligations archived
+atomically, nothing moved.
+
+> **Judges — the 90-second path.** Problem/thesis → §1 · Why Canton is
+> load-bearing (not a logo) → §3 · Live DevNet evidence → [DEVNET.md](./DEVNET.md) ·
+> Submission kit (brief, deck, video script, pilot plan) → [SUBMISSION.md](./SUBMISSION.md) ·
+> Run it from zero → [Run the demo](#run-the-demo).
+>
+> Hardened in this revision: approvals are bound to a SHA-256 of the proposal
+> terms (a rewritten proposal cannot settle with old approvals); fully-netted
+> cycles settle with zero receipts; the privacy check proves isolation against
+> the session's own batch, live against the ledger.
 
 ---
 
