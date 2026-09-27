@@ -248,10 +248,13 @@ outreach kit in [OUTREACH.md](./OUTREACH.md).
 
 ## Run the demo
 
-Prerequisites: Docker? No — just `dpm`, Node 22, pnpm. The sandbox is a single
-JVM process.
+Prerequisites: `dpm` (with a JDK), Node 22, pnpm 10. No Docker — the sandbox is a
+single JVM process.
 
 ```bash
+# 0. Workspace dependencies (once)
+pnpm install --frozen-lockfile
+
 # 1. Fresh local ledger + parties + app config (takes ~2 minutes)
 bash scripts/bootstrap-sandbox.sh
 
@@ -259,11 +262,16 @@ bash scripts/bootstrap-sandbox.sh
 pnpm --filter @netting/core test
 pnpm --filter @netting/typesafe-judgments test
 pnpm --filter @netting/canton-gateway test
-cd daml && dpm test
+(cd daml && dpm test)
 
-# 3. Start the app
+# 3. Build and start the app
+pnpm --filter @netting/web build
 pnpm --filter @netting/web start   # http://localhost:3100
 ```
+
+`pnpm --filter @netting/web dev` also works for a hot-reload session. The
+bootstrap script is idempotent: re-running it against a live sandbox reuses the
+existing parties and rewrites `apps/web/.env.local`.
 
 Demo flow: **Ingest → Load demo dataset → Review** (drop the flagged
 duplicate `INV-001-R`; `Globex Corp` stays unresolved and is excluded) →
