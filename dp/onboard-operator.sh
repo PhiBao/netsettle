@@ -35,6 +35,19 @@ api() { # api <port> <token> <method> <path> [body]
   fi
 }
 
+# A party with this prefix may already exist, from an earlier run or a previous
+# invocation. POST /onboarding answers 409 in that case, so reuse it instead of
+# failing - re-running this script must be safe.
+EXISTING="$(api $PROV_API "$TP" GET /decentralized-parties \
+  | jq -r --arg p "$PREFIX" '.parties[]? | select(.party_id | startswith($p + "::")) | .party_id' | head -1)"
+if [ -n "$EXISTING" ]; then
+  OWNERS="$(api $PROV_API "$TP" GET /decentralized-parties \
+    | jq -r --arg p "$PREFIX" '.parties[] | select(.party_id | startswith($p + "::")) | "threshold \(.threshold), \(.owners | length) owners"' | head -1)"
+  echo "reusing existing operator party $EXISTING ($OWNERS)"
+  echo "nothing to do - verify it with: bash dp/verify-operator.sh $PREFIX"
+  exit 0
+fi
+
 PROV_PARTICIPANT="$(api $PROV_API "$TP" GET /node-config | jq -r '.node.participant_id')"
 USER_PARTICIPANT="$(api $USER_API "$TU" GET /node-config | jq -r '.node.participant_id')"
 PROV_KEY="$(api $PROV_API "$TP" GET /keys/status | jq -r .public_key)"

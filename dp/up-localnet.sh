@@ -23,8 +23,27 @@ if ! command -v canton >/dev/null; then
   export PATH="$HOME/.local/bin:$PATH"
 fi
 
-echo "==> starting LocalNet with Keycloak (first run pulls ~5GB, ~10 min)"
-canton builder start --with app-user --auth < /tmp/netsettle-cbt-answers.txt
+# Idempotent: re-running must not destroy the ledger, because the whole point of
+# this directory is that you can run it again and the party survives. Probing the
+# admin APIs is enough to know LocalNet is already there.
+localnet_up() {
+  local code
+  for port in 3902 2902 4902; do
+    # Any HTTP status proves something is listening; these APIs answer 401
+    # without a token, and a bare connection failure returns 000.
+    code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 4 \
+      "http://127.0.0.1:$port/v2/participants" || true)"
+    [ "$code" != "000" ] || return 1
+  done
+  return 0
+}
+
+if localnet_up; then
+  echo "==> LocalNet is already running, keeping the ledger"
+else
+  echo "==> starting LocalNet with Keycloak (first run pulls ~5GB, ~10 min)"
+  canton builder start --with app-user --auth < /tmp/netsettle-cbt-answers.txt
+fi
 
 docker pull "$DM_IMAGE" >/dev/null
 

@@ -178,6 +178,17 @@ for Docker and ~20GB of disk, and it pins its own DecMan image tag. The harness 
 
 ## Run it
 
+The whole thing is one command:
+
+```bash
+bash dp/reproduce.sh            # ~35 min first run, prints each step and stops on failure
+```
+
+Prerequisites: Docker with Compose v2.1.1+, `curl`, `jq` >= 1.6, the Canton Builder
+Tool and the Daml SDK (`dpm`). Roughly 8GB of RAM.
+
+The individual steps, if you want to run them one at a time:
+
 ```bash
 bash dp/up-localnet.sh          # LocalNet (Keycloak auth) + 2 DM nodes, ~10 min first run
 bash dp/onboard-operator.sh     # create the 2-of-2 operator party
@@ -198,7 +209,12 @@ environment blocked writes.
 `prove-two-of-two.sh` exits non-zero if a single host is ever allowed through, so
 it is safe to wire into CI rather than trusting one green run.
 
-Teardown: `canton builder stop && docker rm -f dm-provider dm-user`.
+Teardown: `bash dp/down.sh` (add `--purge` to delete the party and the ledger).
+
+Every step is idempotent. `up-localnet.sh` keeps an existing ledger rather than
+restarting it, and `onboard-operator.sh` reuses an existing party instead of
+failing against a prefix already on the ledger — so re-running any of this is
+safe, which matters because a judge will not be on a pristine machine.
 
 ## The shape of it
 
@@ -264,3 +280,52 @@ to wave alerts through, which is how a real leak gets missed.
   voted on (`generic_vote`, `transfer`, …) while the action says which domain
   operation the vote authorises (`governance_set_threshold`, …). Passing a
   `generic_vote` as the action is rejected at deserialisation.
+
+## What we claim, and what we do not
+
+The BitSafe challenge asks integrations to demonstrate the behaviour their model
+claims, and says plainly that *"multiple nodes alone do not prove independent
+control or outage tolerance"* and that *"judges will reward honest scope"*.
+So, precisely:
+
+**Claimed and demonstrated — shared control.** A governed settlement cannot
+execute below the confirmation threshold and succeeds once it is met. Shown twice,
+on the ledger, with asserting scripts:
+
+| | Script | Evidence |
+|---|---|---|
+| Governance layer | `dp/prove-two-of-two.sh` | `Enough confirmations to execute action was not met`, then `Action executed successfully` |
+| Settlement layer | `dp/settle-as-decentralized-party.sh` | `requires authorizers netsettle-operator::…`, then a receipt signed by that party |
+
+**Not claimed — distributed hosting.** We do not demonstrate behaviour when a
+hosting node goes offline, so we make no availability claim. Stopping one of our
+two LocalNet nodes would show that its *signature* is required, but both nodes run
+on one machine, so it would say nothing about machine-level outage tolerance.
+Saying otherwise would be exactly the overclaim the brief warns against.
+
+## Nodes, operators, thresholds, independence
+
+Required by the brief, so stated explicitly rather than left to be inferred.
+
+| | |
+|---|---|
+| Party | `netsettle-operator::1220c096f43bba0d44b93798c731ac3a6a4c66e4ff2587b44d371ba2a0ee3500453b` |
+| Threshold | **2 of 2** |
+| Members | `app_provider_builder-localnet-1::1220b1a5…`, `app_user_builder-localnet-1::1220d5ad…` |
+| Key custody | each member holds one owner key contribution; the party's namespace needs both to sign |
+| Governed contract | `Governance.Rules`, created by the party, `threshold: 2` |
+
+**On independence, precisely:** the two members are genuinely separate Canton
+participants, with separate host keys, separate participant namespaces and
+separate Decentralization Manager instances that reach each other only over an
+encrypted Noise mesh. No single one of them can sign for the party — that is
+enforced at the namespace level, not merely in a contract, and we verified it:
+submitting as the party from either participant alone is refused with `HTTP 403`,
+and only the two co-signing path succeeds.
+
+**But in this LocalNet demo both nodes are operated by us, on one machine.** So
+what we have demonstrated is *cryptographic* independence of the operators' keys
+and the threshold rule, not *organisational* independence of operators. In a real
+deployment the members would be separate organisations with separate
+infrastructure, and that is the property a reader should weigh. We would rather
+state the limit than let a reader assume more than we showed.
