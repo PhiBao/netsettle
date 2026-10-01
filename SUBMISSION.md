@@ -461,8 +461,12 @@ The challenge selector is a dropdown with **no free-text field**, so the BitSafe
 story has to live in artifacts rather than in the form: deck page 8, README §6,
 and (optionally) the video.
 
-Video limit is **5 minutes**; the current cut is 2:49, so there is real headroom
-if a judge-facing demonstration is wanted.
+Video limit is **5 minutes**. Because the challenge selector has no text field,
+the video carries the demonstration: it now ends on a terminal scene running
+`dp/settle-as-decentralized-party.sh` on a local Canton LocalNet, showing the real
+refusal (`requires authorizers netsettle-operator::…`), both members confirming,
+and the receipt signed by the party. Cut is **3:12** (191.8s), 108s under the
+limit, with burned-in subtitles.
 
 ### BitSafe — Decentralizing Apps on Canton (50,000 CC)
 
