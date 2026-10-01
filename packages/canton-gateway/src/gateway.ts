@@ -62,6 +62,8 @@ export interface ReceiptRecord {
   to: string;
   amountMinor: string;
   currency: string;
+  /** ISO timestamp from the receipt itself, when the node reported one. */
+  settledAt?: string;
 }
 
 type Json = Record<string, unknown>;
@@ -85,13 +87,35 @@ export function templateId(packageId: string, module: string, name: string): str
 
 /** Extract created contract IDs for one template from a submitted transaction. */
 export function createdContractIds(transaction: unknown, templateSuffix: string): string[] {
-  const out: string[] = [];
+  return createdContracts(transaction, templateSuffix).map((c) => c.contractId);
+}
+
+/**
+ * Full create events for one template, straight out of the submitted
+ * transaction.
+ *
+ * The settlement path reads its receipts from here rather than re-reading the
+ * ledger afterwards: a settlement that succeeded on the ledger must never be
+ * reported as failed because a follow-up read was rejected (the shared node
+ * caps a party-scoped contract listing, and the write is the source of truth,
+ * not the read).
+ */
+export function createdContracts(
+  transaction: unknown,
+  templateSuffix: string,
+): Array<{ contractId: string; payload: Json }> {
+  const out: Array<{ contractId: string; payload: Json }> = [];
   const walk = (node: unknown): void => {
     if (!node || typeof node !== "object") return;
     const record = node as Json;
     const created = (record.createdEvent ?? record.CreatedEvent) as Json | undefined;
     if (created && typeof created.templateId === "string" && created.templateId.endsWith(templateSuffix)) {
-      if (typeof created.contractId === "string") out.push(created.contractId);
+      if (typeof created.contractId === "string") {
+        out.push({
+          contractId: created.contractId,
+          payload: (created.createArgument ?? created.CreateArgument ?? {}) as Json,
+        });
+      }
     }
     for (const value of Object.values(record)) {
       if (Array.isArray(value)) value.forEach(walk);
@@ -99,7 +123,8 @@ export function createdContractIds(transaction: unknown, templateSuffix: string)
     }
   };
   walk(transaction);
-  return [...new Set(out)];
+  const seen = new Set<string>();
+  return out.filter((c) => (seen.has(c.contractId) ? false : (seen.add(c.contractId), true)));
 }
 
 export class CantonGateway {
@@ -220,7 +245,7 @@ export class CantonGateway {
     operator: string,
     proposalCid: string,
     approvalCids: string[],
-  ): Promise<string[]> {
+  ): Promise<ReceiptRecord[]> {
     const tx = await this.submit([operator], [
       {
         ExerciseCommand: {
@@ -231,7 +256,14 @@ export class CantonGateway {
         },
       },
     ]);
-    return createdContractIds(tx, ":SettlementReceipt");
+    return createdContracts(tx, ":SettlementReceipt").map((c) => ({
+      contractId: c.contractId,
+      from: String(c.payload.from ?? ""),
+      to: String(c.payload.to ?? ""),
+      amountMinor: String(c.payload.amountMinor ?? "0"),
+      currency: String(c.payload.currency ?? ""),
+      settledAt: String(c.payload.settledAt ?? ""),
+    }));
   }
 
   async activeContracts(
@@ -292,4 +324,15 @@ export class CantonGateway {
       currency: String(c.payload.currency ?? ""),
     }));
   }
+}
+
+/**
+ * True when a party-scoped contract listing was refused because the node's
+ * active-contract cap was reached. Reads of *live* contracts are the only ones
+ * that can hit it, and callers use this to degrade honestly instead of
+ * reporting a wrong answer.
+ */
+export function isActiveContractLimit(err: unknown): boolean {
+  const text = err instanceof Error ? err.message : String(err);
+  return text.includes("MAXIMUM_LIST_ELEMENTS_NUMBER_REACHED");
 }

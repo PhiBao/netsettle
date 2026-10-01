@@ -39,14 +39,72 @@ export async function POST(request: Request) {
   store.ingestIssues = issues;
   const ask = getAsk();
 
-  const partyCache = new Map<string, Awaited<ReturnType<typeof normalizeParty>>>();
-  const judgeParty = async (raw: string) => {
-    const cached = partyCache.get(raw);
-    if (cached) return cached;
-    const result = await normalizeParty(raw, store.roster, ask);
-    partyCache.set(raw, result);
-    return result;
+  // One question per unique value, asked once, and every row's questions asked
+  // together. A treasury operator should not wait for the judgment engine
+  // row by row: the whole batch is judged in parallel, then the loop below
+  // just reads settled answers.
+  type PartyJudgment = Awaited<ReturnType<typeof normalizeParty>>;
+  type KindJudgment = Awaited<ReturnType<typeof classifyKind>>;
+  const partyCache = new Map<string, Promise<PartyJudgment>>();
+  const kindCache = new Map<string, Promise<KindJudgment>>();
+  const duplicateCache = new Map<string, Promise<number>>();
+  const judgeParty = (raw: string) => {
+    let pending = partyCache.get(raw);
+    if (!pending) {
+      pending = normalizeParty(raw, store.roster, ask);
+      partyCache.set(raw, pending);
+    }
+    return pending;
   };
+  const judgeKind = (memo: string) => {
+    let pending = kindCache.get(memo);
+    if (!pending) {
+      pending = classifyKind(memo, ask);
+      kindCache.set(memo, pending);
+    }
+    return pending;
+  };
+
+  const twinOf = (o: import("@/lib/store").StoredObligation) =>
+    obligations.find(
+      (t) =>
+        t.id !== o.id &&
+        t.debtorKey === o.debtorKey &&
+        t.creditorKey === o.creditorKey &&
+        t.amountMinor === o.amountMinor &&
+        t.currency === o.currency &&
+        t.dueDate === o.dueDate,
+    );
+  const needsDuplicateJudgment = (o: import("@/lib/store").StoredObligation) =>
+    o.status === "quarantined" || o.reviewReasons.some((reason) => /uplicate|ifferent reference/.test(reason));
+  const twinFields = (o: import("@netting/typesafe-judgments").ObligationFingerprint) => ({
+    debtorKey: o.debtorKey,
+    creditorKey: o.creditorKey,
+    amountMinor: o.amountMinor,
+    currency: o.currency,
+    dueDate: o.dueDate,
+    reference: o.reference,
+  });
+
+  if (ask) {
+    const parties = [...new Set(obligations.flatMap((o) => [o.debtor, o.creditor]))];
+    const memos = [...new Set(obligations.map((o) => o.memo).filter((m): m is string => Boolean(m)))];
+    const duplicates = obligations.filter(needsDuplicateJudgment);
+    await Promise.all([
+      ...parties.map(judgeParty),
+      ...memos.map(judgeKind),
+      ...duplicates.map(async (o) => {
+        const twin = twinOf(o);
+        if (!twin) return;
+        const key = `${o.id}:${twin.id}`;
+        duplicateCache.set(
+          key,
+          duplicateProbability(twinFields(o), twinFields(twin), ask).then((j) => j.value),
+        );
+        await duplicateCache.get(key);
+      }),
+    ]);
+  }
 
   let reviewCounter = 0;
   const addReview = (item: Omit<ReviewItem, "id" | "resolved">) => {
@@ -85,7 +143,7 @@ export async function POST(request: Request) {
       }
     }
     if (stored.memo) {
-      const kind = await classifyKind(stored.memo, ask);
+      const kind = await judgeKind(stored.memo);
       stored.kind = kind.value;
       if (kind.reviewRequired) {
         addReview({
@@ -98,42 +156,12 @@ export async function POST(request: Request) {
         });
       }
     }
-    if (
-      stored.status === "quarantined" ||
-      stored.reviewReasons.some((reason) => /uplicate|ifferent reference/.test(reason))
-    ) {
-      const twin = obligations.find(
-        (o) =>
-          o.id !== stored.id &&
-          o.debtorKey === stored.debtorKey &&
-          o.creditorKey === stored.creditorKey &&
-          o.amountMinor === stored.amountMinor &&
-          o.currency === stored.currency &&
-          o.dueDate === stored.dueDate,
-      );
+    if (needsDuplicateJudgment(stored)) {
+      const twin = twinOf(stored);
       let probability = 0.99;
       let source: ReviewItem["source"] = "fallback";
       if (twin && ask) {
-        const judgment = await duplicateProbability(
-          {
-            debtorKey: stored.debtorKey,
-            creditorKey: stored.creditorKey,
-            amountMinor: stored.amountMinor,
-            currency: stored.currency,
-            dueDate: stored.dueDate,
-            reference: stored.reference,
-          },
-          {
-            debtorKey: twin.debtorKey,
-            creditorKey: twin.creditorKey,
-            amountMinor: twin.amountMinor,
-            currency: twin.currency,
-            dueDate: twin.dueDate,
-            reference: twin.reference,
-          },
-          ask,
-        );
-        probability = judgment.value;
+        probability = await duplicateCache.get(`${stored.id}:${twin.id}`)!;
         source = "typesafe";
       }
       addReview({

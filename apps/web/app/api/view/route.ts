@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { normalizePartyKey } from "@netting/core";
+import { isActiveContractLimit } from "@netting/canton-gateway";
 import { getLedger, partyIdFor } from "@/lib/ledger";
 import { getSessionStore, withSession } from "@/lib/store";
 
@@ -111,6 +112,10 @@ export async function GET(request: Request) {
       scope: "this session's batch, queried live as the party above",
     };
   } catch (err) {
+    // An unverifiable read must never read as a passed proof. When the node
+    // refuses a party-scoped listing (its active-contract cap), say exactly
+    // that instead of quietly claiming isolation.
+    const capped = isActiveContractLimit(err);
     verification = {
       verified: false,
       ownReceipts: { visible: 0, total: ownReceipts.length },
@@ -118,7 +123,9 @@ export async function GET(request: Request) {
       ownObligations: { visible: 0, total: ownObligations.length },
       othersObligations: { hidden: 0, total: otherObligations.length },
       scope: "this session's batch, queried live as the party above",
-      reason: String(err),
+      reason: capped
+        ? "The node refused a party-scoped listing (too many active contracts), so isolation could not be verified right now."
+        : String(err),
     };
   }
 

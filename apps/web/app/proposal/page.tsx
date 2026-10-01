@@ -92,6 +92,7 @@ export default function ProposalPage() {
   const [error, setError] = useState<string | null>(null);
   const [blockers, setBlockers] = useState<Record<string, string[]>>({});
   const [busy, setBusy] = useState(false);
+  const [busyAction, setBusyAction] = useState("");
   const [viewParty, setViewParty] = useState("");
   const [view, setView] = useState<ViewData | null>(null);
 
@@ -115,8 +116,11 @@ export default function ProposalPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const call = async (url: string, body: unknown, proposalId?: string) => {
+  const call = async (url: string, body: unknown, proposalId?: string, action = "generic") => {
     setBusy(true);
+    // The busy label must name the action in flight: "Settling…" while an
+    // approval is being cast reads as if the settlement already happened.
+    setBusyAction(action);
     setError(null);
     if (proposalId) {
       setBlockers((b) => {
@@ -146,6 +150,7 @@ export default function ProposalPage() {
       return null;
     } finally {
       setBusy(false);
+      setBusyAction("");
     }
   };
 
@@ -292,14 +297,22 @@ export default function ProposalPage() {
               <div className="flex flex-wrap gap-2.5">
                 {proposal.requiredApprovals.map((key) => {
                   const approved = proposal.approvals.some((a) => a.partyKey === key);
+                  const inFlight = busy && busyAction === `approve:${key}`;
                   return (
                     <button
                       key={key}
                       className={approved ? btn : btnPrimary}
                       disabled={busy || approved || settled}
-                      onClick={() => call("/api/approve", { proposalId: proposal.id, partyKey: key }, proposal.id)}
+                      onClick={() =>
+                        call(
+                          "/api/approve",
+                          { proposalId: proposal.id, partyKey: key },
+                          proposal.id,
+                          `approve:${key}`,
+                        )
+                      }
                     >
-                      {approved ? `✓ ${key}` : `Approve as ${key}`}
+                      {inFlight ? `Approving ${key}…` : approved ? `✓ ${key}` : `Approve as ${key}`}
                     </button>
                   );
                 })}
@@ -311,9 +324,11 @@ export default function ProposalPage() {
                 <button
                   className={btnPrimary}
                   disabled={busy || settled}
-                  onClick={() => call("/api/settle", { proposalId: proposal.id }, proposal.id)}
+                  onClick={() =>
+                    call("/api/settle", { proposalId: proposal.id }, proposal.id, `settle:${proposal.id}`)
+                  }
                 >
-                  {busy ? "Settling…" : "Execute atomic settlement"}
+                  {busyAction === `settle:${proposal.id}` ? "Settling…" : "Execute atomic settlement"}
                 </button>
               </div>
               {proposalBlockers && (

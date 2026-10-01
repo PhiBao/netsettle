@@ -79,4 +79,48 @@ describe("judgments", () => {
     const live = await reviewPriority({ kinds: ["goods"], quarantined: 0, lowConfidenceParties: 0, total: 3 }, ask);
     assert.equal(live.reviewRequired, false);
   });
+
+  // A slow or broken judgment engine must never hold a request open: every
+  // question degrades to the deterministic path, and the screen keeps moving.
+  it("degrades to the deterministic path when the engine throws", async () => {
+    const boom: AskFn = async () => {
+      throw new Error("engine down");
+    };
+    const party = await normalizeParty("Acme France GmbH", ROSTER, boom);
+    assert.equal(party.source, "fallback");
+    assert.equal(party.reviewRequired, true);
+
+    const kind = await classifyKind("Platform support renewal", boom);
+    assert.equal(kind.value, "services");
+    assert.equal(kind.source, "fallback");
+
+    const dup = await duplicateProbability(
+      { debtorKey: "A", creditorKey: "B", amountMinor: "100", currency: "USD", dueDate: "2026-10-31", reference: "INV-1" },
+      { debtorKey: "A", creditorKey: "B", amountMinor: "100", currency: "USD", dueDate: "2026-10-31", reference: "INV-1-R" },
+      boom,
+    );
+    assert.equal(dup.source, "fallback");
+    assert.equal(dup.reviewRequired, true);
+
+    const priority = await reviewPriority({ kinds: ["goods"], quarantined: 1, lowConfidenceParties: 1, total: 3 }, boom);
+    assert.equal(priority.source, "fallback");
+    assert.equal(priority.reviewRequired, true);
+  });
+
+  it("times out a hanging engine instead of blocking the caller", async () => {
+    const previous = process.env.TYPESAFE_TIMEOUT_MS;
+    process.env.TYPESAFE_TIMEOUT_MS = "60";
+    try {
+      const hung: AskFn = () => new Promise(() => {});
+      const started = Date.now();
+      const party = await normalizeParty("SG entity", ROSTER, hung);
+      const elapsed = Date.now() - started;
+      assert.ok(elapsed < 1500, `expected degradation quickly, took ${elapsed}ms`);
+      assert.equal(party.source, "fallback");
+      assert.equal(party.reviewRequired, true);
+    } finally {
+      if (previous === undefined) delete process.env.TYPESAFE_TIMEOUT_MS;
+      else process.env.TYPESAFE_TIMEOUT_MS = previous;
+    }
+  });
 });

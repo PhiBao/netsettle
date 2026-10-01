@@ -27,6 +27,36 @@ export interface Judgment<T> {
 
 export const NONE_OF_THESE = "none_of_these";
 
+/**
+ * One judgment call, never a hang.
+ *
+ * The engine is an enhancement, not a dependency: every question is bounded by
+ * a timeout (TYPESAFE_TIMEOUT_MS, default 6s) and any failure — timeout,
+ * network, error, malformed answer — returns null so the caller falls back to
+ * the deterministic path. A slow engine must not freeze a treasury operator's
+ * screen mid-cycle, and it must not cost one timeout per question.
+ */
+async function askJudgment<T = any>(
+  ask: AskFn,
+  state: unknown,
+  questions: Record<string, unknown>,
+  key: string,
+): Promise<T | null> {
+  const timeoutMs = Number(process.env.TYPESAFE_TIMEOUT_MS ?? 6000);
+  try {
+    const response = await Promise.race([
+      ask(state, questions),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`judgment timeout after ${timeoutMs}ms`)), timeoutMs),
+      ),
+    ]);
+    const answer = response?.answers?.[key];
+    return answer === undefined ? null : (answer as T);
+  } catch {
+    return null;
+  }
+}
+
 function stripCorporateSuffix(key: string): string {
   return key
     .replace(/\b(GMBH|AG|GMBH & CO KG|KG|LTD|LIMITED|INC|INCORPORATED|CORP|CORPORATION|LLC|SARL|SAS|SA|PTY|PTE|BV|NV|AB|OY|AS|ASA|SPA|SRL|GROEP|HOLDING|HOLDINGS|GROUP)\b\.?/g, "")
@@ -67,11 +97,16 @@ export async function normalizeParty(
   const criteria: Record<string, string | null> = {};
   for (const name of roster.slice(0, 60)) criteria[name] = `The roster subsidiary named ${name}`;
   criteria[NONE_OF_THESE] = "The text does not refer to any listed roster subsidiary";
-  const response = await ask(
+  const answer = await askJudgment(
+    ask,
     { raw_party_text: raw, roster },
     { party: choice("Which roster subsidiary does `raw_party_text` refer to?", criteria) },
+    "party",
   );
-  const answer = response.answers.party;
+  if (!answer) {
+    // Judgment engine unavailable: keep the deterministic signal, flag for review.
+    return { value: fuzzy, confidence: fuzzy ? 0.5 : 0.2, source: "fallback", reviewRequired: true };
+  }
   if (answer.choice === NONE_OF_THESE) {
     return { value: null, confidence: answer.confidence, source: "typesafe", reviewRequired: true };
   }
@@ -109,7 +144,8 @@ export async function classifyKind(
   if (!ask) {
     return { value: fallbackKind(memo), confidence: 0.55, source: "fallback", reviewRequired: false };
   }
-  const response = await ask(
+  const answer = await askJudgment(
+    ask,
     { memo },
     {
       kind: choice("What kind of intercompany obligation does `memo` describe?", {
@@ -120,8 +156,11 @@ export async function classifyKind(
         other: "None of the above or cannot be determined",
       }),
     },
+    "kind",
   );
-  const answer = response.answers.kind;
+  if (!answer) {
+    return { value: fallbackKind(memo), confidence: 0.5, source: "fallback", reviewRequired: false };
+  }
   return {
     value: answer.choice as ObligationKind,
     confidence: answer.confidence,
@@ -166,12 +205,13 @@ export async function duplicateProbability(
   if (!signals.near) return { value: 0.02, confidence: 0.95, source: "exact", reviewRequired: false };
   if (signals.exact) return { value: 0.99, confidence: 0.99, source: "exact", reviewRequired: false };
   if (!ask) return { value: 0.6, confidence: 0.5, source: "fallback", reviewRequired: true };
-  const response = await ask({ row_a: a, row_b: b }, {
+  const answer = await askJudgment(ask, { row_a: a, row_b: b }, {
     same_obligation: noul(
       "Do `row_a` and `row_b` describe the same underlying intercompany obligation, where only the reference label differs?",
     ),
-  });
-  const p = response.answers.same_obligation.noul as number;
+  }, "same_obligation");
+  if (!answer) return { value: 0.6, confidence: 0.5, source: "fallback", reviewRequired: true };
+  const p = (answer as any).noul as number;
   return {
     value: p,
     confidence: 1 - Math.abs(p - 0.5) * 2,
@@ -189,14 +229,17 @@ export async function reviewPriority(
       summary.quarantined > 0 || summary.lowConfidenceParties > 1 ? 1.4 : 0.4;
     return { value: scoreValue, confidence: 0.5, source: "fallback", reviewRequired: scoreValue >= 1 };
   }
-  const response = await ask({ batch: summary }, {
+  const answer = await askJudgment(ask, { batch: summary }, {
     priority: score("How urgently should a treasury operator review this ingested batch before netting?", [
       "Routine: clean data, safe to auto-process",
       "Glance: minor ambiguities, quick human check advised",
       "Block: likely duplicates or mis-mapped parties, investigate before proceeding",
     ]),
-  });
-  const answer = response.answers.priority;
+  }, "priority");
+  if (!answer) {
+    const scoreValue = summary.quarantined > 0 || summary.lowConfidenceParties > 1 ? 1.4 : 0.4;
+    return { value: scoreValue, confidence: 0.5, source: "fallback", reviewRequired: scoreValue >= 1 };
+  }
   return {
     value: answer.score as number,
     confidence: answer.confidence,
@@ -205,14 +248,26 @@ export async function reviewPriority(
   };
 }
 
+/**
+ * Live engine client with a circuit breaker: once a call fails or times out
+ * (askJudgment bounds each call), this instance stops calling the engine for
+ * the rest of its life, so the rest of the batch degrades instantly.
+ */
 export function createLiveAsk(model = "jev-latest"): AskFn {
   const client = new TypeSafeClient();
+  let tripped = false;
   return async (state, questions) => {
-    const response = await client.systemOne({
-      state: state as any,
-      questions: questions as any,
-      model,
-    } as any);
-    return { answers: (response as any).answers };
+    if (tripped) throw new Error("judgment engine unavailable (circuit open)");
+    try {
+      const response = await client.systemOne({
+        state: state as any,
+        questions: questions as any,
+        model,
+      } as any);
+      return { answers: (response as any).answers };
+    } catch (err) {
+      tripped = true;
+      throw err;
+    }
   };
 }

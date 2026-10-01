@@ -90,6 +90,14 @@ describe("live ledger round-trip", { skip: !LIVE }, () => {
     ];
     const receipts = await gateway.executeProposal(operator, proposal, approvals);
     assert.equal(receipts.length, 2);
+    // Receipts arrive with the transaction, so a settled batch needs no
+    // follow-up read (the party-scoped listing can be refused by the node).
+    for (const receipt of receipts) {
+      assert.match(receipt.contractId, /^0[0-9a-f]{64}$/);
+      assert.equal(receipt.currency, "USD");
+      assert.ok(["2000000"].includes(receipt.amountMinor));
+      assert.ok(receipt.from && receipt.to);
+    }
 
     const remaining = await gateway.activeContracts(operator, "Obligation");
     const ours = remaining.filter((c) =>

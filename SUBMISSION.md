@@ -68,7 +68,11 @@ ISO 20022 pain.001
 
 **Demo URL:** https://100-30-125-235.nip.io
 **Repo:** https://github.com/PhiBao/netsettle
-**Video:** (unlisted/YouTube link — record with the shot list below)
+**Video:** `netsettle-demo.mp4` — 2:49, narrated, burned-in subtitles (`.srt`
+alongside). Recorded against a fresh local ledger so the take is deterministic;
+every number in it comes from the running product. Keep it out of git (19 MB)
+and attach it to the submission form, or upload it unlisted and link that.
+**Deck:** `netsettle-deck.pdf` — 9 slides, 16:9, same rule: attach, don't commit.
 
 ---
 
@@ -494,7 +498,9 @@ the pitch Q&A is better than a shallow integration that scores 1–2 on
 ## Open items before Oct 9 (21:59 UTC)
 
 - [ ] Fill the 6 platform materials (this file) and publish the project page.
-- [ ] Record and link the video; export a ≤10-slide deck from the Pitch section.
+- [x] Record the video and export the deck — both files sit outside the repo in
+      `~/hackcanton-submission/`. Still to do: attach them to the submission
+      form and publish the project page.
 - [ ] Send the outreach touches; log real conversations in the table.
 - [ ] Keep the daily platform journal/activity streak alive (mentors and judges read it).
 - [ ] Noders ask: vet the hardened package, then upgrade the live demo (DEVNET.md).

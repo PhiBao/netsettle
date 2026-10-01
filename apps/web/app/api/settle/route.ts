@@ -24,7 +24,11 @@ export async function POST(request: Request) {
 
   try {
     const ledger = getLedger();
-    const receiptCids = await ledger.gateway.executeProposal(
+    // The receipts come out of the execute transaction itself. Re-reading the
+    // ledger afterwards would put a second, fallible step between the operator
+    // and a settlement that already committed on Canton - a rejected read must
+    // never be reported as "nothing changed".
+    const receipts = await ledger.gateway.executeProposal(
       ledger.operatorParty,
       proposal.ledgerCid,
       proposal.ledgerApprovalCids,
@@ -36,9 +40,7 @@ export async function POST(request: Request) {
     // A fully-netted bucket issues no receipts: every position cancelled, so
     // there is nothing to transfer. The atomic archival of obligations is the
     // whole settlement.
-    const receipts = receiptCids.length > 0 ? await ledger.gateway.readReceipts(ledger.operatorParty) : [];
-    const ours = receipts.filter((r) => receiptCids.includes(r.contractId));
-    const displayReceipts = ours.map((r) => ({
+    const displayReceipts = receipts.map((r) => ({
       proposalId: proposal.id,
       transfer: {
         from: partyIdToDisplay.get(r.from) ?? r.from,
@@ -49,7 +51,7 @@ export async function POST(request: Request) {
         currency: r.currency,
       },
       ledgerReference: r.contractId,
-      settledAt: new Date().toISOString(),
+      settledAt: r.settledAt && r.settledAt !== "" ? r.settledAt : new Date().toISOString(),
     }));
     for (const id of proposal.obligationIds) {
       const obligation = store.obligations.find((o) => o.id === id);
