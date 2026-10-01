@@ -40,10 +40,9 @@ Proven, reproducible on this machine:
 
 Not done yet, and stated plainly rather than implied:
 
-- **NetSettle's own settlement has not been observed executing as the party.**
-  `dp/daml-governed` compiles and implements the mechanism (below), and the
-  authority boundary is a property of the interface rather than of our code, but
-  the end-to-end run is blocked by the environment - see "Where it stops" below.
+- **The settlement has not been observed executing *as* the party.** The
+  authority boundary is proven on the ledger; the positive direction is not
+  reachable from this environment. See "Where it stops" below.
 
 ## The settlement itself, wired to the party's authority
 
@@ -75,30 +74,61 @@ the governed path purely additive.
 
 ### Where it stops
 
-`dp/settle-as-decentralized-party.sh` sets up a real settlement and tries it.
-It currently exits with a clear diagnostic, because this LocalNet's Keycloak
-mode will not issue a signing session to an external client: reads succeed with
-the validator token, every write returns
+`dp/settle-as-decentralized-party.sh` builds a real settlement on the ledger: one
+obligation, one approval, one proposal, all created by a single host. It then
+tries to execute it, and gets this back from Canton:
 
 ```
-HTTP 403  "A security-sensitive error has been received"
+DAML_AUTHORIZATION_ERROR: Interpretation error: Error: node NodeId(0)
+(47540ef8…:NetSettle.Governed:GovernedSettlement) requires authorizers
+netsettle-operator::1220c096…, but only app_provider_builder-localnet-1::1220b1a5…
+were given
 ```
 
-for all three confidential clients in the realm, so it is the LocalNet identity
-model rather than the credentials. The participant only signs for users it holds
-a session for, and a client-credentials grant is not one.
+That is the security property, enforced by the ledger and naming the party that
+was required. The script exits non-zero if a host is ever allowed through.
 
-The Decentralization Manager *does* hold signing sessions, so driving the
-settlement through it is the natural route - but v1.12.0 only creates and
-confirms its own governance templates, and `POST /contracts` takes a fixed
-vocabulary of field types, so it cannot build a `GovernedSettlement` carrying
-obligation and approval CIDs. The other direction, a self-signed LocalNet, makes
-writes work but leaves the DM unable to authenticate, so there is no party to
-settle under.
+Executing *as* the party returns `HTTP 403`. Only the Decentralization Manager
+holds a signing session for the party's namespace, and v1.12.0 will only create
+and confirm its own governance templates: `POST /contracts` takes a fixed
+vocabulary of field types (`decentralized_party`, `party_set`,
+`governance_threshold`, `rel_time`, `optional`) and cannot carry obligation or
+approval contract IDs. The other route, a self-signed LocalNet, makes writes work
+and leaves the DM unable to authenticate, so there is no party to settle under.
 
-So: **the mechanism is identified, implemented and compiled; the end-to-end
-settlement is not yet observed.** The 2-of-2 refusal, by contrast, *is* observed
-and asserted.
+So the honest summary is: **the negative case is proven, the positive case is
+not yet observed.** Closing it needs a DM that can submit an arbitrary
+`GovernableAction` proposal as the party.
+
+### Getting writes to work at all
+
+Worth recording, because each of these fails as an unhelpful `403 "A
+security-sensitive error has been received"` and only the participant log or the
+builder tool's env files say why:
+
+- **Two identities, two purposes.** Package upload is a participant-admin action
+  and wants the *validator* token; submitting commands wants a *user* session. A
+  user token gets 403 on upload, a validator token gets 403 on writes.
+- **A user session, not a service account.** Only a password grant counts. The
+  `*-unsafe` clients are public and direct-grant enabled, which is why the
+  password grant is the only way in.
+- **`userId` must be the token's `sub` claim** - the user's UUID, not their
+  username. The participant log spells it out: `Claims are only valid for userId
+  '553c6754-…', actual userId is 'app-provider'`.
+- **The audience must be `https://canton.network.global`** (from
+  `~/.canton-builder/modules/keycloak/compose.env`).
+- **Both participants must vet the package** before anything referencing it can be
+  submitted, or the submission fails with `NO_SYNCHRONIZER_FOR_SUBMISSION`.
+- **An interface choice belongs to the interface.** The `templateId` is
+  `governance-action-v1…:Governance.Action:GovernableAction` while the
+  `contractId` is the implementing contract; using the implementing template id
+  gives `Invalid template … or choice:GovernableAction_Execute`.
+
+LocalNet users have argon2-hashed passwords that cannot be recovered, so
+`dp/lib-localnet.sh` resets one through the Keycloak admin API (`admin`/`admin`).
+That is acceptable here and only here: the Keycloak belongs to a throwaway
+LocalNet on our own machine, holds nothing of ours, and is discarded by
+`canton builder stop`.
 
 ## Run it
 
@@ -109,12 +139,15 @@ bash dp/verify-operator.sh      # assert threshold 2 + two owners on the ledger
 bash dp/deploy-governance.sh    # deploy GovernanceRules as the party
 bash dp/prove-two-of-two.sh     # the test: one host is refused, both succeed
 
-# the governed settlement (needs a LocalNet whose identity model allows the
-# participant to sign external writes - see "Where it stops")
-bash dp/vendor-governance.sh
-(cd dp/daml-governed && dpm build)
-bash dp/settle-as-decentralized-party.sh
+# the governed settlement
+bash dp/vendor-governance.sh                       # fetch the governance packages
+(cd dp/daml-governed && dpm build)                 # build netsettle-governed
+bash dp/settle-as-decentralized-party.sh           # one host is refused
 ```
+
+Exit codes for the last one: `0` proved both directions, `4` proved the authority
+boundary but could not execute as the party (the current state - see "Where it
+stops"), `1` failed, `3` blocked by the environment.
 
 `prove-two-of-two.sh` exits non-zero if a single host is ever allowed through, so
 it is safe to wire into CI rather than trusting one green run.
