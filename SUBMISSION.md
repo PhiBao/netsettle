@@ -452,30 +452,61 @@ shared node, so the recording cannot be spoiled by other teams' traffic.
 
 ---
 
-## Sponsor challenges — current eligibility (checked 2026-09-28)
+## Sponsor challenges — eligibility (re-checked 2026-10-01)
 
-**Bottom line: do not tag either challenge yet.** Both requirement sets are
-public; tagging without meeting them means being judged against them and scored
-down. Neither is currently satisfied by NetSettle.
+**Bottom line: tick BitSafe (contribution pool). Do not apply for Gold. Do not
+tag Grofty.**
 
 ### BitSafe — Decentralizing Apps on Canton (50,000 CC)
 
-Eligibility paths:
+Entry route: **"Decentralize the application" → contribution pool (20,000 CC,
+2 teams)**.
 
-| Path | Requirement | NetSettle today | Verdict |
-|---|---|---|---|
-| Contribution pool (20,000 CC, 2 teams) | Reproducible **LocalNet demo** of an application integration with the Decentralization Manager, a custom module, or an open-source contribution | Nothing integrates with the Decentralization Manager | ❌ not eligible yet |
-| Gold (30,000 CC) | A **Decentralized Party deployed on DevNet or MainNet**, integrated into a working application; apply by Oct 4 | No Decentralized Party; the shared hackathon DevNet explicitly cannot host teams' Decentralized Parties, and we have no own node | ❌ not feasible in time |
+| Requirement (from the BitSafe brief) | NetSettle | Verdict |
+|---|---|---|
+| Create a **Decentralized Party** for the application being built | `netsettle-operator::1220c096…`, threshold 2, two members with split signing authority | ✅ |
+| Distribute hosting, shared control, **or both** | Shared control — claimed and demonstrated (see below) | ✅ |
+| **Reproducible LocalNet demo** (mandatory for pool eligibility) | `bash dp/reproduce.sh` → *"All five steps passed."* Verified from wiped DM state | ✅ |
+| **Shared control:** "a governed action cannot execute below the required confirmation threshold, then succeeds when the threshold is met" | Proven twice — governance layer and settlement layer, both refused **by Daml** | ✅ |
+| Public GitHub repository | `github.com/PhiBao/netsettle` (public) | ✅ |
+| Presentation explaining the app, the risk, **and the DM integration** | 10-page deck; page 8 is the DM integration | ✅ |
+| Test results / evidence of a working implementation | 20/8/7/4 tests green; scripts exit non-zero if the property regresses | ✅ |
 
-To become eligible for the contribution pool, the honest minimum is: run the
-Decentralization Manager locally, make the **netting operator** a Decentralized
-Party (2-of-3 hosts, no single host can execute settlement), wire one governed
-action to it (execute settlement), and ship a clean-room reproducible LocalNet
-demo. Estimate 3–5 focused days, judged on reproducibility and whether it
-addresses a real risk. Decision rule: only start it after the platform
-submission is published and validation outreach is running, and no later than
-Oct 4 (so there is a week to finish). Do **not** apply for Gold — applying for
-Gold forfeits the contribution pool.
+Not claimed, and deliberately so: **distributed hosting**. Node-outage
+behaviour is not demonstrated. Both members run on one machine in the demo, so
+that would show key independence, not machine-level outage tolerance — and the
+brief explicitly warns that "multiple nodes alone do not prove independent
+control or outage tolerance" while rewarding honest scope.
+
+**Do not apply for Gold** (30,000 CC): it requires a live Decentralized Party on
+DevNet or MainNet, applied for by Oct 4. The shared hackathon DevNet cannot host
+team Decentralized Parties and we have no node of our own. Applying for Gold
+forfeits the contribution pool.
+
+#### Paste-ready copy for the BitSafe field
+
+> The netting operator is the party that sees the whole obligation graph and
+> whose signature commits a settlement — so it is the last party that should sit
+> under one host's control. It is now a Canton Decentralized Party at threshold
+> 2, hosted by two participants.
+>
+> A governed settlement is expressed as a `GovernableAction`, the interface
+> `Governance.Rules` exercises once `threshold` members confirm. The host that
+> proposes a settlement cannot execute it: Canton returns
+> `DAML_AUTHORIZATION_ERROR … requires authorizers netsettle-operator::…`, naming
+> the party whose authority was missing. Once both members confirm, the
+> Decentralization Manager executes the proposal *as the party*, and the
+> settlement receipts are signed by that party rather than by any host.
+>
+> Both refusals come from Daml on the ledger, not from our application — which
+> matters, because an application-level check can be edited past by whoever
+> controls the application. `bash dp/reproduce.sh` rebuilds the party and
+> re-proves both halves in one command.
+>
+> We claim shared control and demonstrate it. We do not claim uptime: both
+> members run on one machine in the LocalNet demo, so what is shown is
+> cryptographic independence of the operators' keys and the threshold rule, not
+> organisational independence.
 
 ### Grofty Wallet Bounty (10,000 CC, 3 places)
 
