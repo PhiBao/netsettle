@@ -231,21 +231,26 @@ reconciliation every cycle**.
 
 ### 3. Conversations
 
-| # | Who (role, company type) | Date | Key takeaway |
-| --- | --- | --- | --- |
-| 1 | _outreach sent — awaiting reply_ | | |
-| 2 | _outreach sent — awaiting reply_ | | |
-| 3 | _target: TMS implementation consultant_ | | |
+**Direct operator conversations: 0 so far.** I am not going to dress up a survey
+or a forum post as an interview. What exists instead, in the order a judge should
+weight it:
 
-**Honest status:** zero operator conversations at the time of writing. The
-outreach kit (`OUTREACH.md`) targets 20 touches → 5 conversations before the
-deadline; this table is updated as replies land. We do not fabricate interviews,
-and we do not present surveys as conversations.
+| Evidence | What it is | Where |
+| --- | --- | --- |
+| **Real usage on the public demo** | 7 sessions, 3 completed cycles, 6 settlements, 3 payment files — anonymous counters, no session ids or IPs | live at `/api/metrics` |
+| **On-ledger footprint** | 24 active settlement receipts and **0 obligations or proposals left open** when last measured (2026-09-27) — every cycle started on the shared node finished, nothing half-settled | ledger, queried as each party |
+| **Adversarial testing** | blocked execution, tampered terms, missing approvals, duplicate and unknown-counterparty rows, fully-circular cycles — 4 Daml / 20 core / 8 judgment / 7 gateway tests | repo, `dpm test` + `pnpm -r test` |
+| **Problem research** | 6 cited sources on netting adoption and AP-file confidentiality, incl. named treasurers at Weir, Bandwidth, Innospec — cited as evidence of the *problem*, never as users of this product | `VALIDATION.md` |
+| **Outreach in flight** | N targeted asks to ex-treasurers from that research, TMS implementers and AFP/EACT intercompany groups; each offers to compress one of their own cycles from a CSV in 15 minutes. Replies land in the platform journal as they arrive. | `OUTREACH.md` |
 
 **Strongest quote:** none yet — deliberately left empty until the first real
-call. The secondary-research quotes we *do* have (Weir Group, Bandwidth,
-Innospec) are cited in `VALIDATION.md` as evidence of the problem, not as users
-of this product.
+call.
+
+**What I am doing about it:** the fastest credible route to a non-zero number is
+not cold outreach, it is the 15-minute ask above, plus posting the demo where
+treasury practitioners already are (Canton Forum/Discord, treasury management
+communities) and asking specifically for treasury people. Target: 3 conversations
+before Oct 9.
 
 ### 4. Tests and results
 
@@ -261,7 +266,7 @@ of this product.
 | Users who completed the core flow | completed-flow counter (first settlement per session) | **1 measured** in the deploy-verification run | ≥5 external completions |
 | Settlements executed on DevNet | `SettlementReceipt` contracts + proposals | **24 active receipts; 0 active obligations (all started cycles fully settled)** | ≥40 receipts (judges' runs count, nothing left half-settled) |
 | Active parties | operator + subsidiaries on DevNet | **5** (operator + 4 subsidiaries) | 5 held (party allocation is operator-gated) |
-| Tests green | `pnpm -r test` + `dpm test` | 20 core / 6 TypeSafe / 7 gateway / 6 Daml | stay green + route-level tests |
+| Tests green | `pnpm -r test` + `dpm test` | 20 core / 8 judgment / 7 gateway / 4 Daml | stay green + route-level tests |
 
 ### 6. Success criteria after the hackathon
 
