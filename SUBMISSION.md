@@ -454,8 +454,15 @@ shared node, so the recording cannot be spoiled by other teams' traffic.
 
 ## Sponsor challenges — eligibility (re-checked 2026-10-01)
 
-**Bottom line: tick BitSafe (contribution pool). Do not apply for Gold. Do not
-tag Grofty.**
+**Bottom line: tick "BitSafe Challenge — Contribution Pool". Do not apply for
+Gold. Do not tag Grofty.**
+
+The challenge selector is a dropdown with **no free-text field**, so the BitSafe
+story has to live in artifacts rather than in the form: deck page 8, README §6,
+and (optionally) the video.
+
+Video limit is **5 minutes**; the current cut is 2:49, so there is real headroom
+if a judge-facing demonstration is wanted.
 
 ### BitSafe — Decentralizing Apps on Canton (50,000 CC)
 
@@ -480,8 +487,14 @@ control or outage tolerance" while rewarding honest scope.
 
 **Do not apply for Gold** (30,000 CC): it requires a live Decentralized Party on
 DevNet or MainNet, applied for by Oct 4. The shared hackathon DevNet cannot host
-team Decentralized Parties and we have no node of our own. Applying for Gold
-forfeits the contribution pool.
+team Decentralized Parties and we have no node of our own.
+
+Correction: an earlier note here claimed that applying for Gold forfeits the
+contribution pool. That was wrong — the challenge list carries Contribution Pool
+and Gold as separate options and each says you can also enter the other. Gold is
+ruled out purely because we cannot meet its technical requirement in time, not
+because entering it would cost us the pool. Enter the **Contribution Pool**
+option only.
 
 #### Paste-ready copy for the BitSafe field
 
