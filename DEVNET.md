@@ -178,3 +178,31 @@ re-run the Step 1 password grant.
 Recommendation: attempt once the MVP freeze holds; timebox to one day. If the
 node fights back, the local-ledger demo plus this runbook is the fallback
 story — "DevNet-ready, reproducible locally."
+
+## If SSH times out (it will, when your home IP changes)
+
+The demo host's security group `netsettle-sg` (sg-01274cf91fbb413db) allows SSH
+only from a single `/32`. A residential IP changes without warning, and the node
+then **silently drops** port 22 — the box looks fine over HTTPS, so it reads as
+"the host is down" when it is only your source address that stopped matching.
+
+Diagnose in one line:
+
+```bash
+curl -s https://ifconfig.me                      # your current egress IP
+nc -zv 100.30.125.235 443                        # open -> host is alive
+nc -zv 100.30.125.235 22                         # timeout -> SG dropped you
+```
+
+Fix with the AWS CLI (no console needed):
+
+```bash
+aws ec2 authorize-security-group-ingress --group-id sg-01274cf91fbb413db \
+  --ip-permissions "IpProtocol=tcp,FromPort=22,ToPort=22,IpRanges=[{CidrIp=$(curl -s https://ifconfig.me)/32,Description='ssh from current egress IP'}]"
+
+ssh -i ~/.ssh/netsettle-key.pem ec2-user@100.30.125.235
+```
+
+Prefer a durable option if you get tired of this: EC2 Instance Connect
+(push-based, needs no inbound SSH rule at all) or pin the SG to a range you
+control. Do **not** leave `0.0.0.0/0` on port 22 for longer than the hackathon.
