@@ -133,6 +133,22 @@ GOVCORE_HEX="361d1f2857f833f8094caf86ecdd5daaa3e2075c22dafe2bf18cde63ee98d488"
 configure_party $PROV_API "$TP" AppProvider app-provider-validator "$PROV_SECRET" "$PROV_PARTY"
 configure_party $USER_API "$TU" AppUser     app-user-validator     "$USER_SECRET" "$USER_PARTY"
 
+# A decentralized party is a *new namespace*: no participant controls it, so no
+# participant has actAs/readAs for it until rights are granted explicitly.
+# Without this the party cannot even create its own governance contract and the
+# workflow dies with "The caller does not have permission to execute the
+# specified operation".
+echo "==> granting the party actAs/readAs on both participants"
+grant() { # grant <api> <token> <client> <secret>
+  local r
+  r="$(api "$1" "$2" POST /auth/grant-rights \
+    "$(jq -nc --arg dp "$DP" --arg c "$3" --arg s "$4" \
+       '{dec_party_id:$dp, admin_client_id:$c, admin_client_secret:$s}')")"
+  echo "    $3: $(printf '%s' "$r" | jq -c '.rights')"
+}
+grant $PROV_API "$TP" app-provider-validator "$PROV_SECRET"
+grant $USER_API "$TU" app-user-validator     "$USER_SECRET"
+
 echo "==> deploying GovernanceRules as the operator (both members, threshold 2)"
 curl -sS --max-time 600 -X POST "http://localhost:$PROV_API/contracts" \
   -H "Authorization: Bearer $TP" -H 'Content-Type: application/json' \
