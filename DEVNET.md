@@ -39,13 +39,22 @@ Upgrade sequence when vetting lands:
 
 **Operator ask (copy-paste):**
 
-> Hi Noders team — HackCanton team NetSettle (Track 1, package `netsettle`).
-> We hardened our Daml contracts (approvals now bind to a proposal-terms hash,
-> and fully-netted cycles settle with zero transfers) and need the new build
-> vetted on `hackcanton-01`: package id
+> Hi Noders team — HackCanton team NetSettle (Track 1, package `netsettle`,
+> currently live and vetted on `hackcanton-01` as `d1b3b958…`).
+>
+> We hardened our Daml contracts: approvals now bind to a hash of the exact
+> proposal terms, and fully-netted cycles settle with zero transfers. The new
+> build is package id
 > `33437385a5fee4b60b50948f66b2e60cf5b9562227ca78b350cb04e0bb3cd199`, same
-> name/version `netsettle-0.1.0`, uploaded via the Console. Our existing
-> operator + 4 subsidiary parties can stay as they are. Thanks!
+> name and version `netsettle-0.1.0` (584,705 bytes).
+>
+> It's not on the node yet — our app identity gets a 403 on `POST /v2/packages`,
+> so we can only upload through the Console UI. Two ways to unblock, whichever is
+> easier: we upload the DAR ourselves and you vet it, or you upload and vet it.
+> Happy to send the DAR however suits. Our existing operator + 4 subsidiary
+> parties can stay exactly as they are — this is a package swap only.
+>
+> Not urgent: the current vetted package keeps the demo running. Thanks!
 
 
 Source: Season 3 materials (official) + live endpoint probes.
@@ -102,11 +111,13 @@ Wallet API tokens on the shared node are **heavily restricted** (probed
 | Vet package (`/v2/package-vetting/update`) | ❌ 403 |
 | Allocate party (Daml Script over gRPC+TLS) | ❌ `PERMISSION_DENIED` |
 
-Status: DAR uploaded via Console (package
-`d1b3b958…dee64f` confirmed on node), but **not vetted**, and we have only our login's `primaryParty` —
-no operator + 4 subsidiaries yet. Creating parties ourselves is impossible
-with this token, and wouldn't help anyway (vetting is per-participant,
-not per-party).
+Status (re-verified 2026-10-01): the demo package `d1b3b958…dee64f` **is** vetted
+and live — `/v2/packages` returns it, and the running app settles against it. The
+hardened package `33437385…` is **not on the node at all**: `POST
+/v2/package-vetting/list` returns zero unvetted package ids, so an earlier note
+saying it had been "uploaded via Console" was wrong. `POST /v2/packages` still
+returns 403 for our app identity, so the DAR has to go up through the Console UI
+before anyone can vet it.
 
 Funding: ~900 CC obtained on our party (covers all demo traffic fees with
 orders of magnitude to spare — one future blocker pre-solved). Once the
