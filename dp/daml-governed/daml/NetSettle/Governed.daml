@@ -28,11 +28,19 @@ import Governance.Action (GovernableAction, GovernableActionView(..))
 -- Obligation
 -- ============================================================================
 
--- | An intercompany payable, as in the main NetSettle package. `Settle` is
--- controlled by the netting operator, so only the operator (or whatever holds
--- its authority) can consume it.
+-- | An intercompany payable, as in the main NetSettle package.
+--
+-- `Settle` is controlled by the netting operator *party*, not by the operating
+-- entity. That is deliberate and it is what lets the governed flow work: the
+-- governance engine will only let `executeImpl` require the authority of
+-- {proposer, governanceParty}, so anything `executeImpl` exercises has to be
+-- controllable by one of those two. Making the party the controller also means
+-- an obligation can never be consumed by a single operator host.
 template GovernedObligation
   with
+    governanceParty : Party
+      -- ^ The netting operator as a Canton Decentralized Party. Sole controller
+      -- of `Settle`.
     operator : Party
     debtor : Party
     creditor : Party
@@ -42,10 +50,10 @@ template GovernedObligation
   where
     ensure amountMinor > 0 && currency /= "" && reference /= ""
     signatory operator, debtor
-    observer creditor
+    observer creditor, governanceParty
 
     choice Settle : ()
-      controller operator
+      controller governanceParty
       do return ()
 
 -- ============================================================================
@@ -125,9 +133,11 @@ template GovernedSettlement
 
     settlementId : Text
     operator : Party
-      -- ^ The operating entity whose books this settlement closes. A signatory,
-      -- so the operator is on the hook for the result even though it does not
-      -- control execution.
+      -- ^ The operating entity whose books this settlement closes. An observer
+      -- rather than a signatory: the governance engine only permits `executeImpl`
+      -- to require the authority of {proposer, governanceParty}, so a third
+      -- signatory here would make the action unexecutable. The operator is still
+      -- on the hook - it is the `proposer` and an observer of every receipt.
     obligationCids : [ContractId GovernedObligation]
     approvalCids : [ContractId GovernedApproval]
     residuals : [(Party, Party, Int)]
@@ -137,12 +147,14 @@ template GovernedSettlement
     expiresAt : Time
     termsHash : Text
   where
-    -- `governanceParty` is an observer, not a signatory, and that is the point:
-    -- a single operator host can create and propose a settlement, because
-    -- proposing is not settling. Execution is gated separately, by the
-    -- GovernableAction controller below, which the operator cannot satisfy.
-    signatory operator, proposer
-    observer governanceParty, requiredApprovers
+    -- `proposer` is the sole signatory, and that is what the governance engine
+    -- requires: it lets one member file the proposal on its own, and it keeps
+    -- the authority `executeImpl` needs down to {proposer, governanceParty}.
+    -- `governanceParty` only observes, because GovernableAction_Execute is
+    -- controlled by it rather than signed by it - a host can propose a
+    -- settlement because proposing is not settling.
+    signatory proposer
+    observer governanceParty, operator, requiredApprovers
 
     ensure settlementId /= "" && not (null obligationCids) && termsHash /= ""
 

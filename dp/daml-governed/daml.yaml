@@ -5,9 +5,16 @@
 #
 # SDK 3.4.11 to match the governance packages, which are built against it.
 sdk-version: 3.4.11
-name: netsettle-governed
+name: netsettle-governed-v1
 source: daml
-version: 0.1.0
+# The name carries the version qualifier on purpose. Changing a template's
+# signatories or controllers is not a migration Canton can upgrade through: it
+# rejects the same name at a higher version with NOT_VALID_UPGRADE_PACKAGE, and
+# the same name at the same version with KNOWN_PACKAGE_VERSION. A new name is
+# treated as a new package, which is the documented way to ship a breaking
+# change without touching deployed instances of the old one. The harness reads
+# the name and version back out of the DAR, so this can be bumped freely.
+version: 0.2.0
 dependencies:
   - daml-prim
   - daml-stdlib

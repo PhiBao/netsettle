@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """Ledger scenario for dp/settle-as-decentralized-party.sh.
 
-Reads its configuration from the environment - the shell wrapper handles auth,
-party discovery and package upload - and drives one settlement end to end:
+Configuration comes from the environment; the shell wrapper handles auth, party
+discovery and package distribution. The flow follows DLC-link's
+docs/CUSTOM_DAML_TEMPLATES.md, "Path B" plus "Confirm and execute via DecMan":
 
-  1. one host creates the obligation, the approval and the settlement proposal;
-  2. that host is refused when it tries to execute the settlement;
-  3. the settlement executes as the decentralized party and issues receipts.
+  1. a member creates the obligation, the approval and the proposal (Ledger API);
+  2. that member is refused when it tries to execute the proposal itself;
+  3. both members confirm through the DM, and the DM executes the proposal as the
+     decentralized party, which runs `executeImpl` and issues the receipts.
 
 Split out of the shell script because quoting nested JSON payloads through four
 levels of shell is not worth the fight.
@@ -19,35 +21,49 @@ import urllib.error
 import urllib.request
 
 PKG = os.environ["PKG"]
+GOV_ACTION = os.environ["GOV_ACTION"]
 DP = os.environ["DP"]
 LEDGER = os.environ["LEDGER"]
+DM_API = os.environ["DM_API"]
+DM_API2 = os.environ["DM_API2"]
 TOKEN = os.environ["TP"]
+PEER_TOKEN = os.environ["TU"]
 PROV = os.environ["PROV_PARTY"]
-SUB = os.environ["SUB_PARTY"]
 TERMS = os.environ["TERMS_HASH"]
 SID = os.environ["SETTLEMENT_ID"]
-# Canton resolves the signing key from (userId, actAs). The userId must be the
-# identity the participant knows us by, not an arbitrary string.
-USER_ID = os.environ.get("CANTON_USER_ID", "app-provider-validator")
 
 MOD = "NetSettle.Governed"
-URL = f"http://localhost:{LEDGER}/v2/commands/submit-and-wait-for-transaction"
+LEDGER_URL = f"http://localhost:{LEDGER}/v2/commands/submit-and-wait-for-transaction"
+
+# For governance_type "core_domain" the `action` field is required by the request
+# schema but unused - proposal_cid is what identifies the work item. It only has
+# to deserialise, so this is a well-formed self-action used purely as a
+# placeholder. Passing `generic_vote` fails on releases whose action enum does
+# not include it, which is a different release from the hackathon branch.
+PLACEHOLDER = {"type": "governance_set_threshold", "new_threshold": 2}
+
+# The interface choice belongs to the *interface*, so templateId is the
+# interface's own and contractId is the implementing contract. Using the
+# implementing template id fails with "Invalid template ... or choice".
+IFACE = f"{GOV_ACTION}:Governance.Action:GovernableAction"
 
 
+# --------------------------------------------------------------------------- #
+# Ledger
+# --------------------------------------------------------------------------- #
 def submit(act_as, command):
-    """Submit one command and return the parsed response (or the error body)."""
     body = json.dumps(
         {
             "commands": {
                 "actAs": act_as,
-                "userId": USER_ID,
+                "userId": os.environ["CANTON_USER_ID"],
                 "commandId": f"dp-{random.randint(1 << 30, 1 << 40)}",
                 "commands": [command],
             }
         }
     ).encode()
     req = urllib.request.Request(
-        URL,
+        LEDGER_URL,
         data=body,
         method="POST",
         headers={"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"},
@@ -56,11 +72,10 @@ def submit(act_as, command):
         with urllib.request.urlopen(req, timeout=300) as response:
             return json.loads(response.read().decode())
     except urllib.error.HTTPError as err:
-        return {"httpStatus": err.code, "error": err.read().decode()[:400]}
+        return {"httpStatus": err.code, "error": err.read().decode()[:600]}
 
 
 def tpl(entity):
-    # The JSON API takes the template id as a single "pkg:Module:Entity" string.
     return f"{PKG}:{MOD}:{entity}"
 
 
@@ -84,26 +99,17 @@ def create(act_as, entity, args):
     ids = created(tx, entity)
     if not ids:
         blob = json.dumps(tx)
-        # 403 "security-sensitive error" means the participant refused to sign,
-        # which is an environment limitation rather than a contract error.
-        if tx.get("httpStatus") == 403 or "security-sensitive" in blob:
+        if tx.get("httpStatus") in (401, 403) or "security-sensitive" in blob:
             print("    BLOCKED: the participant refused to sign this write.")
-            print("    See the note in dp/settle-as-decentralized-party.sh for why,")
-            print("    and for what is and is not proven without this scenario.")
+            print("    See dp/lib-localnet.sh - writes need a user session and a")
+            print("    userId equal to the token's `sub` claim.")
             sys.exit(3)
         print(f"    create {entity} failed: {blob[:400]}")
         sys.exit(1)
     return ids[0]
 
 
-# An interface choice belongs to the *interface*, so templateId is the interface's
-# own (from the governance-action package) while contractId is the implementing
-# contract. Passing the implementing templateId fails with "Invalid template ...
-# or choice:GovernableAction_Execute".
-IFACE = f"{os.environ['GOV_ACTION_PKG']}:Governance.Action:GovernableAction"
-
-
-def execute(act_as, cid):
+def execute_as(act_as, cid):
     return submit(
         act_as,
         {
@@ -117,46 +123,66 @@ def execute(act_as, cid):
     )
 
 
-def refused(tx):
-    """True when Canton rejected the update instead of executing it."""
-    if created(tx, "SettlementReceipt"):
-        return False
-    blob = json.dumps(tx)
-    return any(
-        word in blob
-        for word in (
-            "DAML_AUTHORIZATION_ERROR",
-            "requires authorizers",
-            "Cannot",
-            "not authorized",
-            "not authorised",
-        )
-    )
-
-
 def authorization_error(tx):
     """Canton reports this through nested, escaped JSON, so slice the raw text
     around the phrase rather than trying to parse our way down to it."""
     blob = json.dumps(tx).replace('\\"', '"')
-    marker = "requires authorizers"
-    index = blob.find(marker)
+    index = blob.find("requires authorizers")
     if index == -1:
         return ""
     start = blob.rfind("Interpretation error", 0, index)
     start = start if start != -1 else max(0, index - 60)
     end = blob.find('",', index)
-    end = end if end != -1 else index + 220
+    end = end if end != -1 else index + 240
     return blob[start:end].strip()
 
 
+# --------------------------------------------------------------------------- #
+# Decentralization Manager
+# --------------------------------------------------------------------------- #
+def dm(port, token, method, path, body=None):
+    url = f"http://localhost:{port}{path}"
+    data = json.dumps(body).encode() if body is not None else None
+    headers = {"Authorization": f"Bearer {token}"}
+    if data:
+        headers["Content-Type"] = "application/json"
+    req = urllib.request.Request(url, data=data, method=method, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=300) as response:
+            return json.loads(response.read().decode() or "{}")
+    except urllib.error.HTTPError as err:
+        return {"httpStatus": err.code, "error": err.read().decode()[:600]}
+
+
+def governance_state():
+    return dm(DM_API, os.environ["TPV"], "GET", f"/governance/confirmations?party_id={DP}")
+
+
+def confirmations_for(proposal_cid):
+    state = governance_state()
+    for action in state.get("domain_actions") or []:
+        if action.get("proposal_cid") == proposal_cid:
+            return action
+    return {}
+
+
+# --------------------------------------------------------------------------- #
 def main():
-    print("==> host A creates the obligation, the approval, and proposes the settlement")
+    rules_cid = governance_state().get("rules_contract_id")
+    threshold = governance_state().get("threshold")
+    if not rules_cid:
+        print("no GovernanceRules for this party - run dp/deploy-governance.sh first")
+        return 1
+    print(f"rules contract {rules_cid[:24]}...  threshold {threshold}")
+
+    print("\n==> host A creates the obligation, the approval, and proposes the settlement")
     obl = create(
-        [PROV, SUB],
+        [PROV],
         "GovernedObligation",
         {
+            "governanceParty": DP,
             "operator": PROV,
-            "debtor": SUB,
+            "debtor": PROV,
             "creditor": PROV,
             "amountMinor": "100000",
             "currency": "EUR",
@@ -189,7 +215,7 @@ def main():
             "operator": PROV,
             "obligationCids": [obl],
             "approvalCids": [app],
-            "residuals": [{"_1": PROV, "_2": SUB, "_3": "100000"}],
+            "residuals": [{"_1": PROV, "_2": PROV, "_3": "100000"}],
             "currency": "EUR",
             "valueDate": "2026-10-31T00:00:00Z",
             "requiredApprovers": [PROV],
@@ -200,50 +226,151 @@ def main():
     print(f"    settlement   {settle[:20]}...  proposed by one host, executable by neither")
 
     print("\n==> host A tries to execute the settlement it just proposed")
-    tx = execute([PROV], settle)
-    if refused(tx):
-        detail = authorization_error(tx)
-        print("    -> REFUSED by Canton. Daml named the party that was required:")
-        if detail:
-            print("       " + detail[:300])
-        else:
-            print("       GovernableAction_Execute is controlled by governanceParty,")
-            print("       and this host is not it.")
+    tx = execute_as([PROV], settle)
+    detail = authorization_error(tx)
+    if detail or created(tx, "SettlementReceipt"):
+        if created(tx, "SettlementReceipt"):
+            print("    *** EXECUTED BY THE PROPOSING HOST - the boundary does not hold ***")
+            return 1
+        print("    -> REFUSED. Daml named the party whose authority was required:")
+        print("       " + (detail[:300] if detail else "governanceParty"))
         boundary = True
     else:
-        print("    *** EXECUTED BY THE PROPOSING HOST - the boundary does not hold ***")
-        print("       " + json.dumps(tx)[:300])
+        print("    *** unexpected: " + json.dumps(tx)[:300])
         boundary = False
 
-    print("\n==> the settlement executes as the decentralized party")
-    tx = execute([DP], settle)
-    receipts = created(tx, "SettlementReceipt")
-    if receipts:
-        for receipt in receipts:
-            print(f"    receipt      {receipt[:32]}...")
-        print()
-        print("PASS: the proposing host was refused; the operator party settled.")
-        print("      A single host can propose a settlement but cannot execute one.")
-        return 0 if boundary else 1
+    # From here the DM drives it. `action` is required by the request schema but
+    # unused for core_domain - proposal_cid identifies the work item.
+    print("\n==> each member confirms the proposal through the Decentralization Manager")
+    for label, port, token in (
+        ("host A", DM_API, os.environ["TPV"]),
+        ("host B", DM_API2, os.environ["TUV"]),
+    ):
+        r = dm(
+            port,
+            token,
+            "POST",
+            "/governance/confirm",
+            {
+                "party_id": DP,
+                "rules_contract_id": rules_cid,
+                "proposal_cid": settle,
+                "action": PLACEHOLDER,
+                "governance_type": "core_domain",
+            },
+        )
+        ok = "error" not in r
+        print(f"    {label} confirm -> {'ok' if ok else json.dumps(r)[:160]}")
+        action = confirmations_for(settle)
+        count = len(action.get("confirmations") or [])
+        print(f"    confirmations: {count} of {threshold}")
 
-    # Reaching here means the participant would not sign for the party. That is
-    # expected here and is a property of who holds the party's keys, not a bug.
-    print("    the participant would not sign as the party: HTTP 403")
-    print()
-    if not boundary:
-        print("FAIL: the proposing host executed a settlement it had no authority to settle.")
+    print("\n==> the DM executes the proposal as the operator party")
+    action = confirmations_for(settle)
+    cids = [c["contract_id"] for c in action.get("confirmations") or []]
+    print(f"    can_execute reported by the DM: {action.get('can_execute')}")
+    if not cids:
+        print("    no confirmations recorded - cannot execute")
+        return 4
+    r = dm(
+        DM_API,
+        os.environ["TPV"],
+        "POST",
+        "/governance/execute",
+        {
+            "party_id": DP,
+            "rules_contract_id": rules_cid,
+            "proposal_cid": settle,
+            "confirmation_cids": cids,
+            "disclosed_contracts": [],
+            "action": PLACEHOLDER,
+            "governance_type": "core_domain",
+        },
+    )
+    print(f"    execute -> {json.dumps(r)[:300]}")
+
+    print("\n==> did the settlement actually happen under the party?")
+    live = active_contracts()
+
+    # Receipts for this run's settlement only. Earlier runs leave their own
+    # receipts behind, so counting every receipt would overstate this one.
+    receipts = [c for c in live.get("SettlementReceipt", []) if c["createArgument"].get("settlementId") == SID]
+    if not receipts:
+        print("    no receipt for this settlement - executeImpl did not settle anything")
+        return 4
+    for c in receipts:
+        args = c["createArgument"]
+        print(
+            f"    receipt      {c['contractId'][:32]}..."
+            f"  {args.get('amountMinor')} {args.get('currency')}"
+            f"  signed by {str(args.get('governanceParty', ''))[:28]}..."
+        )
+
+    # The obligation must be gone: executeImpl exercises Settle, which consumes
+    # it. That is what makes the settlement atomic rather than partial.
+    if [c for c in live.get("GovernedObligation", []) if c["contractId"] == obl]:
+        print(f"    obligation {obl[:32]}... is STILL ACTIVE - settlement was not atomic")
         return 1
-    print("PASS (partial): the proposing host was refused, with Daml naming the party")
-    print("      that was required. Executing AS the party is not reachable from here:")
-    print("      only the Decentralization Manager holds a signing session for the")
-    print("      party's namespace, and v1.12.0 only creates and confirms its own")
-    print("      governance templates - POST /contracts takes a fixed field vocabulary")
-    print("      and cannot carry obligation or approval contract IDs.")
+    print(f"    obligation {obl[:32]}... consumed (Settle exercised, archived)")
+
     print()
-    print("      So the negative case - the security property - is proven on the ledger.")
-    print("      The positive case needs a DM that can submit an arbitrary")
-    print("      GovernableAction proposal as the party.")
-    return 4
+    if boundary:
+        print("PASS: the proposing host was refused, and the operator party settled.")
+        print("      No single host could settle this cycle on its own: the ledger")
+        print("      required the party's authority, and the receipts are signed by it.")
+        return 0
+    print("FAIL: the proposing host was not refused.")
+    return 1
+
+
+def active_contracts():
+    """Every contract the party can see, keyed by template entity name.
+
+    Read with the validator identity rather than the user session: a user token is
+    not entitled to actAs the party's namespace, which is the entire point of the
+    party existing.
+    """
+    query = json.dumps(
+        {
+            "activeAtOffset": ledger_end(),
+            "eventFormat": {
+                "filtersByParty": {DP: {"cumulative": [{"identifierFilter": {"WildcardFilter": {"value": {}}}}]}}
+            },
+        }
+    ).encode()
+    req = urllib.request.Request(
+        f"http://localhost:{LEDGER}/v2/state/active-contracts",
+        data=query,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {os.environ['TPV']}",
+            "Content-Type": "application/json",
+            "actAs": DP,
+            "readAs": DP,
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=300) as response:
+            body = json.loads(response.read().decode())
+    except urllib.error.HTTPError:
+        return []
+    out = {}
+    for entry in body:
+        created_event = (entry.get("contractEntry", {}).get("JsActiveContract") or {}).get("createdEvent")
+        if not created_event:
+            continue
+        entity = str(created_event.get("templateId", "")).split(":")[-1]
+        out.setdefault(entity, []).append(created_event)
+    return out
+
+
+def ledger_end():
+    req = urllib.request.Request(
+        f"http://localhost:{LEDGER}/v2/state/ledger-end",
+        headers={"Authorization": f"Bearer {os.environ['TPV']}", "actAs": DP},
+    )
+    with urllib.request.urlopen(req, timeout=60) as response:
+        return json.loads(response.read().decode())["offset"]
 
 
 if __name__ == "__main__":

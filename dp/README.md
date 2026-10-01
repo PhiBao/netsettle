@@ -14,7 +14,8 @@ It is deliberately isolated from the product: nothing in `apps/`, `packages/` or
 
 ## What this proves (and what it does not)
 
-Proven, reproducible on this machine:
+Proven, reproducible on this machine, and each assertion exits non-zero if it
+stops holding:
 
 - A **Canton LocalNet** (three participants, synchronizer, wallets, Keycloak)
   booted with one command.
@@ -26,6 +27,7 @@ Proven, reproducible on this machine:
   signed by both → topology confirmed.
 - A **`Governance.Rules` contract created by the party itself**, with both members
   in the party set and `threshold: 2` on the ledger.
+- **NetSettle's own settlement running under that party's authority**, end to end.
 - **A governed action submitted by one host is refused by that Daml contract**:
 
   ```
@@ -38,67 +40,81 @@ Proven, reproducible on this machine:
   having: the refusal is a *ledger* property, so it survives an operator who
   controls the application code. An application-level check would not.
 
-Not done yet, and stated plainly rather than implied:
+- **A settlement executed under the party's authority**, refused to the host that
+  proposed it, with the receipts signed by the party and the obligation consumed
+  atomically. See below.
 
-- **The settlement has not been observed executing *as* the party.** The
-  authority boundary is proven on the ledger; the positive direction is not
-  reachable from this environment. See "Where it stops" below.
 
 ## The settlement itself, wired to the party's authority
 
 The operator is not just governed; the settlement is expressed as a
-`GovernableAction`, which is the interface `Governance.Rules` exercises once
-`threshold` members have confirmed:
+`GovernableAction`, the interface `Governance.Rules` exercises once `threshold`
+members have confirmed. `GovernableAction_Execute` is declared by the interface
+with `controller (view this).governanceParty`, so `executeImpl` runs *as the
+party*, and the same code that refuses a single host is what settles once both
+have agreed.
 
-```daml
-interface instance GovernableAction for GovernedSettlement where
-  view = GovernableActionView with { governanceParty; proposer; actionLabel; description }
-  executeImpl = do ... settle the obligations, issue the receipts ...
+`dp/settle-as-decentralized-party.sh` runs the whole thing and asserts both
+halves:
+
+```
+==> host A creates the obligation, the approval, and proposes the settlement
+    settlement   006926ee852c0911...  proposed by one host, executable by neither
+
+==> host A tries to execute the settlement it just proposed
+    -> REFUSED. Daml named the party whose authority was required:
+       ...:GovernedSettlement) requires authorizers
+       netsettle-operator::1220c096..., but only
+       app_provider_builder-localnet-1... were given
+
+==> each member confirms the proposal through the Decentralization Manager
+    host A confirm -> ok        confirmations: 1 of 2
+    host B confirm -> ok        confirmations: 2 of 2
+
+==> the DM executes the proposal as the operator party
+    can_execute reported by the DM: True
+    execute -> {"message": "Action executed successfully"}
+
+==> did the settlement actually happen under the party?
+    receipt      0042c6afaa01de55...  100000 EUR  signed by netsettle-operator::1220c096...
+    obligation   006483a4e7203a41... consumed (Settle exercised, archived)
+
+PASS: the proposing host was refused, and the operator party settled.
 ```
 
-`GovernableAction_Execute` is declared by the interface with
-`controller (view this).governanceParty`. That is the whole mechanism: a host can
-create the obligation, collect the approvals and propose the settlement, because
-proposing is not settling - but it cannot exercise the choice, because it is not
-the controller. The same `executeImpl` body as the production `Execute`, and the
-same checks: approval coverage, expiry, and `termsHash` binding.
+Exit code `0` only when both directions hold, so it is safe to put in CI rather
+than trusting one green run. The on-ledger audit record names the parties:
 
-The receipts are signed by the DP alone (`signatory governanceParty`), so a
-receipt on the ledger is itself evidence that the party authorised the
-settlement rather than one host.
+```json
+{ "actionLabel": "SettleGoverned",
+  "executor":   "app_provider_builder-localnet-1::1220b1a5...",
+  "confirmers": ["app_user_builder-localnet-1::1220d5ad...",
+                 "app_provider_builder-localnet-1::1220b1a5..."] }
+```
+
+### Design points that the governance engine forces
+
+These are not preferences; each one is a rule in `Governance.Rules`, and
+violating it makes the action unexecutable at run time rather than at build time.
+
+- **`proposer` is the proposal's sole signatory.** That is what lets one member
+  file a proposal alone, and it keeps the authority `executeImpl` needs down to
+  `{proposer, governanceParty}`.
+- **`governanceParty` observes, it does not sign.** It is the *controller* of
+  `GovernableAction_Execute`, not a signatory. So a host can propose a
+  settlement, because proposing is not settling.
+- **`operator` is an observer, not a signatory.** An extra signatory would make
+  `executeImpl` require authority the engine will not grant it.
+- **Anything `executeImpl` touches must be controllable by the party.** So
+  `GovernedObligation.Settle` is controlled by `governanceParty`, not by
+  `operator` - which is also why no single host can consume an obligation.
+- **Receipts are signed by the party alone.** A receipt on the ledger is then
+  itself evidence that the party authorised the settlement.
 
 `dp/daml-governed` is a **separate Daml package** from `daml/`, on SDK 3.4.11 to
 match the governance packages. Depending on them changes the package hash, which
 would force a re-vet of the live demo's DevNet package; keeping it separate makes
 the governed path purely additive.
-
-### Where it stops
-
-`dp/settle-as-decentralized-party.sh` builds a real settlement on the ledger: one
-obligation, one approval, one proposal, all created by a single host. It then
-tries to execute it, and gets this back from Canton:
-
-```
-DAML_AUTHORIZATION_ERROR: Interpretation error: Error: node NodeId(0)
-(47540ef8…:NetSettle.Governed:GovernedSettlement) requires authorizers
-netsettle-operator::1220c096…, but only app_provider_builder-localnet-1::1220b1a5…
-were given
-```
-
-That is the security property, enforced by the ledger and naming the party that
-was required. The script exits non-zero if a host is ever allowed through.
-
-Executing *as* the party returns `HTTP 403`. Only the Decentralization Manager
-holds a signing session for the party's namespace, and v1.12.0 will only create
-and confirm its own governance templates: `POST /contracts` takes a fixed
-vocabulary of field types (`decentralized_party`, `party_set`,
-`governance_threshold`, `rel_time`, `optional`) and cannot carry obligation or
-approval contract IDs. The other route, a self-signed LocalNet, makes writes work
-and leaves the DM unable to authenticate, so there is no party to settle under.
-
-So the honest summary is: **the negative case is proven, the positive case is
-not yet observed.** Closing it needs a DM that can submit an arbitrary
-`GovernableAction` proposal as the party.
 
 ### Getting writes to work at all
 
@@ -124,11 +140,41 @@ builder tool's env files say why:
   `contractId` is the implementing contract; using the implementing template id
   gives `Invalid template … or choice:GovernableAction_Execute`.
 
+Two versioning traps, both from the same rule - a participant refuses to vet two
+packages with the same name:
+
+- Changing a template's signatories is **not** a migration Canton can upgrade
+  through. The same name at a higher version fails with
+  `NOT_VALID_UPGRADE_PACKAGE`, and the same name at the same version with
+  `KNOWN_PACKAGE_VERSION`. A **new name** is the way to ship a breaking change,
+  which is why the package is `netsettle-governed-v1`. The harness reads the
+  name and version back out of the DAR, so it can be bumped freely.
+
+And one from the DM's request schema rather than Daml's:
+
+- **For `governance_type: "core_domain"` the `action` field is required but
+  unused** - `proposal_cid` identifies the work item. It only has to
+  deserialise. The hackathon branch's guide uses `generic_vote` as the
+  placeholder, but released images whose action enum lacks that variant reject
+  it, so `dp/settle-scenario.py` uses a well-formed self-action instead.
+
 LocalNet users have argon2-hashed passwords that cannot be recovered, so
 `dp/lib-localnet.sh` resets one through the Keycloak admin API (`admin`/`admin`).
 That is acceptable here and only here: the Keycloak belongs to a throwaway
 LocalNet on our own machine, holds nothing of ours, and is discarded by
 `canton builder stop`.
+
+### The official sandbox
+
+DLC-link ships a purpose-built one for this challenge, on the `hackathon` branch:
+three participants and three DecMan nodes, no identity provider at all
+(`DECPM_INSECURE=true`). `./hackathon/up.sh` brings it up in one command.
+
+That is the better environment for a demo - no Keycloak, no token juggling - and
+worth switching to if this is presented live. It needs 12GB of memory and 4 CPUs
+for Docker and ~20GB of disk, and it pins its own DecMan image tag. The harness in
+`dp/` does not depend on it; it deliberately runs against a plain
+`canton builder` LocalNet so the 2-of-2 party can be built with `dp/` alone.
 
 ## Run it
 
@@ -142,12 +188,12 @@ bash dp/prove-two-of-two.sh     # the test: one host is refused, both succeed
 # the governed settlement
 bash dp/vendor-governance.sh                       # fetch the governance packages
 (cd dp/daml-governed && dpm build)                 # build netsettle-governed
-bash dp/settle-as-decentralized-party.sh           # one host is refused
+bash dp/settle-as-decentralized-party.sh           # settle under the party
 ```
 
-Exit codes for the last one: `0` proved both directions, `4` proved the authority
-boundary but could not execute as the party (the current state - see "Where it
-stops"), `1` failed, `3` blocked by the environment.
+Exit codes for the last one: `0` both directions hold, `4` the authority boundary
+held but the governed execution produced no receipt, `1` failed, `3` the
+environment blocked writes.
 
 `prove-two-of-two.sh` exits non-zero if a single host is ever allowed through, so
 it is safe to wire into CI rather than trusting one green run.
