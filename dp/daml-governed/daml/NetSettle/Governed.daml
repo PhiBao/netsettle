@@ -1,0 +1,197 @@
+-- NetSettle: settlement under a decentralized party's authority.
+--
+-- The netting operator is the party that sees the whole obligation graph and
+-- whose signature commits a settlement. That makes it the party you least want
+-- one host to control: if a single process holds the keys that authorise
+-- settlement, whoever controls that process can settle anything.
+--
+-- So the settlement is expressed as a GovernableAction. Governance.Rules
+-- exercises GovernableAction_Execute only after `threshold` distinct members
+-- have confirmed, and the exercise chain carries the governance party's
+-- signature. executeImpl therefore runs as the decentralized party rather than
+-- as the host that proposed it.
+--
+-- The practical consequence: one host can propose a settlement and collect the
+-- subsidiary approvals, but it cannot settle on its own. It needs the agreement
+-- of the other hosts in the operator party.
+--
+-- This module is deliberately separate from `daml/` (the NetSettle package the
+-- live demo runs against the shared DevNet). Depending on the governance
+-- packages changes the package hash, which would force a re-vet of the live
+-- demo's package. Keeping the governed path separate makes it additive.
+
+module NetSettle.Governed where
+
+import Governance.Action (GovernableAction, GovernableActionView(..))
+
+-- ============================================================================
+-- Obligation
+-- ============================================================================
+
+-- | An intercompany payable, as in the main NetSettle package. `Settle` is
+-- controlled by the netting operator, so only the operator (or whatever holds
+-- its authority) can consume it.
+template GovernedObligation
+  with
+    operator : Party
+    debtor : Party
+    creditor : Party
+    amountMinor : Int
+    currency : Text
+    reference : Text
+  where
+    ensure amountMinor > 0 && currency /= "" && reference /= ""
+    signatory operator, debtor
+    observer creditor
+
+    choice Settle : ()
+      controller operator
+      do return ()
+
+-- ============================================================================
+-- Approval
+-- ============================================================================
+
+-- | A subsidiary's approval of one settlement's exact terms. Signatory is the
+-- approver alone, so a party can approve without the operator's authority.
+-- `termsHash` binds the approval to those terms and is re-checked at execution,
+-- so a settlement cannot be re-pointed at different amounts afterwards.
+template GovernedApproval
+  with
+    operator : Party
+    approver : Party
+    settlementId : Text
+    termsHash : Text
+  where
+    ensure settlementId /= "" && termsHash /= ""
+    signatory approver
+    observer operator
+
+-- ============================================================================
+-- Settlement receipt
+-- ============================================================================
+
+-- | Per-subsidiary evidence of settlement, issued by the netting operator party.
+--
+-- `from` and `to` observe only their own receipt, so a party learns nothing
+-- about the other residuals in the batch.
+--
+-- The DP is the sole signatory, which makes the receipt's provenance itself the
+-- evidence: a receipt on the ledger cannot be forged by one operator host,
+-- because no single host holds the DP's namespace.
+template SettlementReceipt
+  with
+    governanceParty : Party
+      -- ^ The decentralized operator party that authorised this settlement.
+    settlementId : Text
+    from : Party
+    to : Party
+    amountMinor : Int
+    currency : Text
+    valueDate : Time
+      -- ^ The value date this receipt settles, carried through to the payment
+      -- file so the finance team does not have to re-derive it.
+    settledAt : Time
+  where
+    ensure amountMinor > 0 && settlementId /= ""
+    signatory governanceParty
+    observer from, to
+
+-- ============================================================================
+-- Governed settlement
+-- ============================================================================
+
+-- | A settlement proposal whose execution requires the netting operator party.
+--
+-- The proposal can be created by a single host; that is safe, because proposing
+-- is not settling. Execution is a different matter: GovernableAction_Execute is
+-- controlled by `governanceParty`, so the proposer cannot exercise it. It runs
+-- only after the operator party's threshold number of distinct members confirm,
+-- which makes the operator party - not any one host - the settling authority.
+--
+-- APPROVALCIDS is checked at execution rather than at proposal time so that the
+-- approvals must cover the terms that actually execute.
+template GovernedSettlement
+  with
+    -- GovernableActionView fields (Daml interfaces add choices, not fields, so
+    -- the interface's view fields are declared here under its names).
+    governanceParty : Party
+      -- ^ The netting operator as a Canton Decentralized Party (threshold 2).
+    proposer : Party
+      -- ^ The host that proposed this settlement. Recorded for audit; cannot
+      -- execute.
+    actionLabel : Text
+    description : Text
+
+    settlementId : Text
+    operator : Party
+      -- ^ The operating entity whose books this settlement closes. A signatory,
+      -- so the operator is on the hook for the result even though it does not
+      -- control execution.
+    obligationCids : [ContractId GovernedObligation]
+    approvalCids : [ContractId GovernedApproval]
+    residuals : [(Party, Party, Int)]
+    currency : Text
+    valueDate : Time
+    requiredApprovers : [Party]
+    expiresAt : Time
+    termsHash : Text
+  where
+    -- `governanceParty` is an observer, not a signatory, and that is the point:
+    -- a single operator host can create and propose a settlement, because
+    -- proposing is not settling. Execution is gated separately, by the
+    -- GovernableAction controller below, which the operator cannot satisfy.
+    signatory operator, proposer
+    observer governanceParty, requiredApprovers
+
+    ensure settlementId /= "" && not (null obligationCids) && termsHash /= ""
+
+    -- | The settlement itself, run under the governance party's authority.
+    --
+    -- Reachable only through the governance party's exercise chain:
+    -- GovernableAction_Execute is defined by the interface with
+    -- `controller (view this).governanceParty`, so no single operator host can
+    -- reach this code. It runs after `threshold` distinct members have
+    -- confirmed, which makes the operator party - not any one host - the
+    -- settling authority.
+    --
+    -- Atomic by construction. Every obligation is archived and every receipt is
+    -- created in one transaction, so a failure part-way through leaves the
+    -- ledger untouched: partial settlement is not expressible.
+    interface instance GovernableAction for GovernedSettlement where
+      view = GovernableActionView with
+        governanceParty
+        proposer
+        actionLabel
+        description
+
+      executeImpl = do
+        now <- getTime
+        assertMsg "settlement proposal expired" (now <= expiresAt)
+        approvals <- mapA fetch approvalCids
+        let approvers = map (.approver) approvals
+        assertMsg
+          "missing approvals"
+          (all (`elem` approvers) requiredApprovers)
+        -- Every approval must name this settlement and cover these exact terms,
+        -- so a settlement cannot be re-pointed at different amounts after the
+        -- approvals were collected.
+        assertMsg
+          "approval does not cover these settlement terms"
+          (all (\a -> a.settlementId == settlementId && a.termsHash == termsHash) approvals)
+
+        _ <- mapA (\cid -> exercise cid Settle) obligationCids
+        _ <- mapA
+          (\(from, to, amountMinor) ->
+            create SettlementReceipt with
+              governanceParty
+              settlementId
+              from
+              to
+              amountMinor
+              currency
+              valueDate
+              settledAt = now
+          )
+          residuals
+        return ()

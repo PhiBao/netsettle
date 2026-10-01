@@ -1,0 +1,17 @@
+# NetSettle governed settlement: the netting operator as a Decentralized Party.
+#
+# Kept separate from the main `daml/` package so the live demo's DevNet-vetted
+# package hash is untouched - see dp/daml-governed/daml/NetSettle/Governed.daml.
+#
+# SDK 3.4.11 to match the governance packages, which are built against it.
+sdk-version: 3.4.11
+name: netsettle-governed
+source: daml
+version: 0.1.0
+dependencies:
+  - daml-prim
+  - daml-stdlib
+  # DLC-link's governance package. Not on the Daml registry, so it is vendored
+  # by dp/vendor-governance.sh and referenced by path - a repository entry would
+  # work but needs a POM per artifact and a second vendored file to no benefit.
+  - .deps/governance-action-v1-0.1.0.dar

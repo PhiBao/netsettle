@@ -38,13 +38,67 @@ Proven, reproducible on this machine:
   having: the refusal is a *ledger* property, so it survives an operator who
   controls the application code. An application-level check would not.
 
-Not done yet (what a full BitSafe submission would still need):
+Not done yet, and stated plainly rather than implied:
 
-- **Running NetSettle's own `Execute` as the party.** Right now the 2-of-2 rule
-  governs the operator's governance contract; the settlement path in
-  `packages/canton-gateway` still submits as a single participant. Wiring the
-  app's `Execute` through the DP is the remaining piece, and it is the only step
-  that would touch the verified settlement code.
+- **NetSettle's own settlement has not been observed executing as the party.**
+  `dp/daml-governed` compiles and implements the mechanism (below), and the
+  authority boundary is a property of the interface rather than of our code, but
+  the end-to-end run is blocked by the environment - see "Where it stops" below.
+
+## The settlement itself, wired to the party's authority
+
+The operator is not just governed; the settlement is expressed as a
+`GovernableAction`, which is the interface `Governance.Rules` exercises once
+`threshold` members have confirmed:
+
+```daml
+interface instance GovernableAction for GovernedSettlement where
+  view = GovernableActionView with { governanceParty; proposer; actionLabel; description }
+  executeImpl = do ... settle the obligations, issue the receipts ...
+```
+
+`GovernableAction_Execute` is declared by the interface with
+`controller (view this).governanceParty`. That is the whole mechanism: a host can
+create the obligation, collect the approvals and propose the settlement, because
+proposing is not settling - but it cannot exercise the choice, because it is not
+the controller. The same `executeImpl` body as the production `Execute`, and the
+same checks: approval coverage, expiry, and `termsHash` binding.
+
+The receipts are signed by the DP alone (`signatory governanceParty`), so a
+receipt on the ledger is itself evidence that the party authorised the
+settlement rather than one host.
+
+`dp/daml-governed` is a **separate Daml package** from `daml/`, on SDK 3.4.11 to
+match the governance packages. Depending on them changes the package hash, which
+would force a re-vet of the live demo's DevNet package; keeping it separate makes
+the governed path purely additive.
+
+### Where it stops
+
+`dp/settle-as-decentralized-party.sh` sets up a real settlement and tries it.
+It currently exits with a clear diagnostic, because this LocalNet's Keycloak
+mode will not issue a signing session to an external client: reads succeed with
+the validator token, every write returns
+
+```
+HTTP 403  "A security-sensitive error has been received"
+```
+
+for all three confidential clients in the realm, so it is the LocalNet identity
+model rather than the credentials. The participant only signs for users it holds
+a session for, and a client-credentials grant is not one.
+
+The Decentralization Manager *does* hold signing sessions, so driving the
+settlement through it is the natural route - but v1.12.0 only creates and
+confirms its own governance templates, and `POST /contracts` takes a fixed
+vocabulary of field types, so it cannot build a `GovernedSettlement` carrying
+obligation and approval CIDs. The other direction, a self-signed LocalNet, makes
+writes work but leaves the DM unable to authenticate, so there is no party to
+settle under.
+
+So: **the mechanism is identified, implemented and compiled; the end-to-end
+settlement is not yet observed.** The 2-of-2 refusal, by contrast, *is* observed
+and asserted.
 
 ## Run it
 
@@ -54,6 +108,12 @@ bash dp/onboard-operator.sh     # create the 2-of-2 operator party
 bash dp/verify-operator.sh      # assert threshold 2 + two owners on the ledger
 bash dp/deploy-governance.sh    # deploy GovernanceRules as the party
 bash dp/prove-two-of-two.sh     # the test: one host is refused, both succeed
+
+# the governed settlement (needs a LocalNet whose identity model allows the
+# participant to sign external writes - see "Where it stops")
+bash dp/vendor-governance.sh
+(cd dp/daml-governed && dpm build)
+bash dp/settle-as-decentralized-party.sh
 ```
 
 `prove-two-of-two.sh` exits non-zero if a single host is ever allowed through, so

@@ -16,3 +16,10 @@ opencode.json
 opencode.alt.json
 
 .env
+
+# Vendored governance DARs for the governed-settlement package (dp/vendor-governance.sh)
+dp/daml-governed/.deps/
+
+# Python bytecode from dp/settle-scenario.py
+__pycache__/
+*.pyc
