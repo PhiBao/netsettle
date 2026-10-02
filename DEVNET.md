@@ -15,15 +15,15 @@ running the previously vetted package (`d1b3b958…`) until the new one is vette
 Upgrade sequence when vetting lands:
 
 1. Ask the Noders operator (Discord support / mentor channel) to vet package
-   `netsettle-0.2.0` at its new hash — see the ask template below.
-2. Upload `daml/.daml/dist/netsettle-0.2.0.dar` via the Console UI (same login).
+   `netsettle-v2-0.2.0` at its new hash — see the ask template below.
+2. Upload `daml/.daml/dist/netsettle-v2-0.2.0.dar` via the Console UI (same login).
 3. On the demo host (`ssh -i ~/.ssh/netsettle-key.pem ec2-user@100.30.125.235`):
    ```bash
    cd /opt/netsettle && git pull
    pnpm install --frozen-lockfile
    (cd daml && dpm build)
    # Confirm the built package id equals what was vetted, then point the app at it:
-   dpm inspect-dar daml/.daml/dist/netsettle-0.2.0.dar | grep -oE 'netsettle-0\.2\.0-[0-9a-f]{64}' | head -1
+   dpm inspect-dar daml/.daml/dist/netsettle-v2-0.2.0.dar | grep -oE 'netsettle-0\.2\.0-[0-9a-f]{64}' | head -1
    sed -i 's/^CANTON_PACKAGE_ID=.*/CANTON_PACKAGE_ID=<vetted package id>/' apps/web/.env.local
    sed -i 's/^CANTON_TERMS_BINDING=.*/CANTON_TERMS_BINDING=on/' apps/web/.env.local
    sudo systemctl restart netsettle-web.service
@@ -45,9 +45,9 @@ Upgrade sequence when vetting lands:
 > We hardened our Daml contracts: approvals now bind to a hash of the exact
 > proposal terms, and fully-netted cycles settle with zero transfers. The new
 > build is package id
-> `f94f225974f3d68465158041d5a1e69d720875afa8bb2e7bd1e456fdb2115ae1`, same
-> version `netsettle-0.2.0` (584,707 bytes, sha256
-> `8d283e157448540d51ce219e3a11e58b551da24be7907008972931c18f11407b`).
+> `0467433b568669044bad44a47a38cb043876f0ac6684e291bee0be0870309c0c`, same
+> version `netsettle-v2-0.2.0` (584,952 bytes, sha256
+> `a160ac1a093620cb629618c2d9052d2bb2ee0eda7e72c0cffceb97b140a8e5dd`).
 >
 > It's not on the node yet — our app identity gets a 403 on `POST /v2/packages`,
 > so we can only upload through the Console UI. Two ways to unblock, whichever is
@@ -130,7 +130,7 @@ party-allocation rights). Draft ask below.
 
 1. Open `https://console.participant.hackcanton-01.devnet.naas.noders.services`
    and sign in.
-2. Upload `daml/.daml/dist/netsettle-0.2.0.dar`. (0.1.0 done 2026-09-23.)
+2. Upload `daml/.daml/dist/netsettle-v2-0.2.0.dar`. (0.1.0 done 2026-09-23.)
 3. Vet package `netsettle` (uniquely named — no collisions with other teams).
    (Blocked — needs operator.)
 4. Allocate 5 parties (operator + 4 subsidiaries) or equivalent rights.

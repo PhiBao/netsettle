@@ -1,7 +1,13 @@
 # for config file options, refer to
 # https://docs.digitalasset.com/build/3.5/dpm/configuration.html#project-configuration
 sdk-version: 3.5.1
-name: netsettle
+# Package NAME carries the qualifier, not just the version. Upgrading 0.1.0 ->
+# 0.2.0 in place is rejected by Canton: the hardening added a non-Optional
+# termsHash field to Approval, and an upgrade may not add a required field
+# (NOT_VALID_UPGRADE_PACKAGE). A different name is not an upgrade at all, so it
+# uploads as a new package and the contract semantics stay strict - termsHash
+# stays a plain Text rather than Optional Text.
+name: netsettle-v2
 source: daml
 version: 0.2.0
 dependencies:
