@@ -23,7 +23,7 @@ Upgrade sequence when vetting lands:
    pnpm install --frozen-lockfile
    (cd daml && dpm build)
    # Confirm the built package id equals what was vetted, then point the app at it:
-   dpm inspect-dar daml/.daml/dist/netsettle-v2-0.2.0.dar | grep -oE 'netsettle-0\.2\.0-[0-9a-f]{64}' | head -1
+   dpm inspect-dar daml/.daml/dist/netsettle-v2-0.2.0.dar | grep -oE 'netsettle-v2-0\.2\.0-[0-9a-f]{64}' | head -1
    sed -i 's/^CANTON_PACKAGE_ID=.*/CANTON_PACKAGE_ID=<vetted package id>/' apps/web/.env.local
    sed -i 's/^CANTON_TERMS_BINDING=.*/CANTON_TERMS_BINDING=on/' apps/web/.env.local
    sudo systemctl restart netsettle-web.service
