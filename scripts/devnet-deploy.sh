@@ -22,13 +22,17 @@ fi
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BASE="https://ledger-api-json.participant.hackcanton-01.devnet.naas.noders.services"
 AUTH=(-H "Authorization: Bearer $TOKEN")
-DAR="$ROOT/daml/.daml/dist/netsettle-0.1.0.dar"
-[ -f "$DAR" ] || { echo "Build the DAR first: (cd daml && dpm build)"; exit 1; }
+# Discovered, not hardcoded: bumping daml.yaml used to require editing this
+# script, and a stale version string silently pointed at the wrong DAR.
+DAR=$(ls -t "$ROOT"/daml/.daml/dist/netsettle-*.dar 2>/dev/null | head -1)
+[ -n "$DAR" ] || { echo "Build the DAR first: (cd daml && dpm build)"; exit 1; }
 
 PKG=$(cd "$ROOT/daml" && dpm inspect-dar "$DAR" 2>/dev/null \
-  | grep -oE '^netsettle-0\.1\.0-[0-9a-f]{64}' | head -1 | sed 's/^netsettle-0.1.0-//')
+  | grep -oE 'netsettle-[0-9.]+-[0-9a-f]{64}' | head -1 | sed -E 's/^netsettle-[0-9.]+-//')
+PKGVER=$(cd "$ROOT/daml" && dpm inspect-dar "$DAR" 2>/dev/null \
+  | grep -oE 'netsettle-[0-9.]+-[0-9a-f]{64}' | head -1 | sed -E 's/^netsettle-([0-9.]+)-[0-9a-f]{64}$/\1/')
 [ -n "$PKG" ] || { echo "Could not determine package id"; exit 1; }
-echo "package: $PKG"
+echo "dar:     $(basename "$DAR")\npackage: $PKG  (version $PKGVER)"
 
 # Wallet tokens are read-only for package management (403 on upload/vet).
 # The DAR must be uploaded + vetted once via the Console UI (same platform
@@ -41,7 +45,7 @@ if [ "${UPLOADED:-0}" != "1" ]; then
     echo "uploaded"
   else
     echo "API upload refused (expected on the shared node)."
-    echo "Upload daml/.daml/dist/netsettle-0.1.0.dar via the Console UI:"
+    echo "Upload $DAR via the Console UI:"
     echo "  https://console.participant.hackcanton-01.devnet.naas.noders.services"
     echo "Then re-run: UPLOADED=1 TOKEN=\$TOKEN bash scripts/devnet-deploy.sh"
     exit 1
