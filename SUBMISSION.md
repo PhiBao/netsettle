@@ -69,7 +69,7 @@ ISO 20022 pain.001
 alongside). Recorded against a fresh local ledger so the take is deterministic;
 every number in it comes from the running product. Keep it out of git (21 MB)
 and attach it to the submission form, or upload it unlisted and link that.
-**Deck:** `netsettle-deck.pdf` — 10 slides, 16:9, same rule: attach, don't commit.
+**Deck:** `netsettle-deck.pdf` — 11 slides, 16:9, same rule: attach, don't commit.
 
 ---
 
