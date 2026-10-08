@@ -123,9 +123,11 @@ this form two years ago.
 
 ## 3. Architecture
 
-> **Diagram:** [System architecture — from CSV to bank file](./docs/diagrams/architecture.html)
-> (self-contained HTML: three pages feed one deterministic core, which consults
-> judgments, commits through the ledger gateway, and exports bank artifacts).
+[![System architecture — from CSV to bank file](./docs/diagrams/architecture.png)](./docs/diagrams/architecture.html)
+
+*Three pages feed one deterministic core, which consults judgments, commits
+through the ledger gateway, and exports bank artifacts. Click through for the
+interactive version.*
 
 Money math, cycle detection, and proposal state live in deterministic
 TypeScript (`@netting/core`) — no floats (integer minor units throughout), no
@@ -136,9 +138,10 @@ gateway is the only component that touches the ledger.
 
 ### Settlement sequence (the atomic core)
 
-> **Diagram:** [Atomic settlement sequence](./docs/diagrams/settlement-sequence.html)
-> (self-contained HTML: ten messages from ingest to bank upload, ending in one
-> atomic Execute).
+[![Atomic settlement sequence](./docs/diagrams/settlement-sequence.png)](./docs/diagrams/settlement-sequence.html)
+
+*Ten messages from ingest to bank upload, ending in one atomic Execute. Click
+through for the interactive version.*
 
 ---
 
@@ -149,9 +152,11 @@ about both is the point of this section.
 
 ### 4.1 What each party can see
 
-> **Diagram:** [Trust boundary — who sees what](./docs/diagrams/trust-boundary.html)
-> (self-contained HTML: the operator holds full visibility while each subsidiary
-> sees only its own legs; cross-reads stop at the boundary).
+[![Trust boundary — who sees what](./docs/diagrams/trust-boundary.png)](./docs/diagrams/trust-boundary.html)
+
+*The operator holds full visibility while each subsidiary sees only its own
+legs; cross-reads stop at the boundary. Click through for the interactive
+version.*
 
 Subsidiaries are private **from each other**, enforced by Daml
 signatories/observers and verified live per party via `/api/view`: the endpoint
