@@ -23,31 +23,28 @@ Checklist the platform tracks (`Publish for Judging` panel):
 
 **Elevator pitch (paste):**
 
-> Subsidiaries of multinational groups owe each other millions every month — much
-> of it circular, so the group moves cash that mathematically cancels. They do it
-> anyway, because payables files are confidential and a half-settled cycle is
-> worse than none.
+> Group subsidiaries owe each other millions every month, much of it circular — so
+> companies move cash that mathematically cancels. They settle gross because
+> payables files are confidential and a half-finished cycle is worse than none.
 >
-> NetSettle turns that monthly spreadsheet-and-email ritual into one operation:
-> ingest intercompany payables, resolve messy counterparty names against the
-> subsidiary roster with confidence-gated judgments, catch duplicates, compress
-> offsetting cycles per currency, collect per-subsidiary approvals, and settle the
-> residual in a single atomic Canton transaction where each subsidiary sees only
-> its own legs. Out comes a bank-ready payment file (CSV + ISO 20022 pain.001).
+> NetSettle nets it. Ingest the month's payables, resolve messy counterparty
+> names, catch duplicates, net offsetting cycles per currency, collect
+> per-subsidiary approvals, and settle the residual in one atomic Canton
+> transaction — each subsidiary seeing only its own legs — then export a
+> bank-ready file (CSV + ISO 20022 pain.001).
 >
-> Live demo: $312,000 across six invoices settles as $40,000 in three transfers,
-> €70,000 as €30,000 in one — and a fully-circular cycle settles with zero
-> transfers, obligations archived atomically.
+> Live on the shared DevNet: $312,000 settles as $40,000 in three transfers,
+> €70,000 as €30,000, and a fully-circular cycle settles with zero transfers.
+> The contracts were self-audited and the on-ledger authorization gaps fixed.
 
 **Shorter variant (if the field is tight):**
 
 > NetSettle compresses the monthly intercompany netting cycle into one atomic
-> Canton transaction. It ingests group payables, resolves messy counterparty
-> names, catches duplicates, nets offsetting cycles per currency, collects
-> per-subsidiary approvals, and settles the residual all-or-nothing — each
-> subsidiary seeing only its own legs — before exporting a bank-ready payment
-> file. Demo: $312k gross settles as $40k in three transfers; a fully-circular
-> cycle settles with zero.
+> Canton transaction: ingest group payables, resolve messy names, catch
+> duplicates, net offsetting cycles per currency, collect per-subsidiary
+> approvals, settle all-or-nothing — each subsidiary seeing only its own legs —
+> then export a bank-ready payment file. Live: $312k settles as $40k in three
+> transfers; a fully-circular cycle settles with zero.
 
 **Track:** Real-World Asset (RWA) & Business Workflows
 
@@ -68,11 +65,11 @@ ISO 20022 pain.001
 
 **Demo URL:** https://100-30-125-235.nip.io
 **Repo:** https://github.com/PhiBao/netsettle
-**Video:** `netsettle-demo.mp4` — 2:49, narrated, burned-in subtitles (`.srt`
+**Video:** `netsettle-demo.mp4` — 3:12, narrated, burned-in subtitles (`.srt`
 alongside). Recorded against a fresh local ledger so the take is deterministic;
-every number in it comes from the running product. Keep it out of git (19 MB)
+every number in it comes from the running product. Keep it out of git (21 MB)
 and attach it to the submission form, or upload it unlisted and link that.
-**Deck:** `netsettle-deck.pdf` — 9 slides, 16:9, same rule: attach, don't commit.
+**Deck:** `netsettle-deck.pdf` — 10 slides, 16:9, same rule: attach, don't commit.
 
 ---
 
