@@ -12,7 +12,14 @@ zero transfers. A Daml change produces a **new package id**, and the shared node
 only vets packages the Noders operator approves. The live demo therefore keeps
 running the previously vetted package (`d1b3b958…`) until the new one is vetted.
 
-Upgrade sequence when vetting lands:
+Live state (2026-10-08): the demo runs the audited package
+`netsettle-v2-1.0.0` (`5eccaf6d…`), vetted, with `CANTON_TERMS_BINDING=on`.
+The pre-audit package `0467433b…` remains vetted for rollback. Verified on the
+shared node after the flip: EUR 70k->30k and USD 312k->40k settled with 4
+receipts, privacy proof green for all four subsidiaries, and the new
+authorization guards return 403/404 as designed.
+
+Historical upgrade sequence:
 
 1. Ask the Noders operator (Discord support / mentor channel) to vet package
    `netsettle-v2-1.0.0` at its new hash — see the ask template below.
@@ -130,7 +137,7 @@ party-allocation rights). Draft ask below.
 
 1. Open `https://console.participant.hackcanton-01.devnet.naas.noders.services`
    and sign in.
-2. Upload `daml/.daml/dist/netsettle-v2-1.0.0.dar`. (0.1.0 done 2026-09-23; 1.0.0 uploaded 2026-10-08, awaiting vet.)
+2. Upload `daml/.daml/dist/netsettle-v2-1.0.0.dar`. (0.1.0 done 2026-09-23; 1.0.0 uploaded and vetted 2026-10-08, live.)
 3. Vet package `netsettle` (uniquely named — no collisions with other teams).
    (Blocked — needs operator.)
 4. Allocate 5 parties (operator + 4 subsidiaries) or equivalent rights.
