@@ -77,12 +77,21 @@ export function settlementBlockers(proposal: NettingProposal, now = new Date().t
 }
 
 /**
- * Canonical form of the proposal terms an approver signs over. The same
- * function runs when the proposal is committed and when the approval is cast;
- * the hash of this string travels in both contracts, and the ledger refuses
- * execution when they disagree — an operator cannot swap terms after approval.
+ * Canonical form of the proposal terms an approver signs over. It runs in two
+ * places, and both must agree or approval is refused:
+ *
+ * - at commit (`POST /api/proposals`), over the values sent to the ledger;
+ * - at approval (`POST /api/approve`), recomputed from session state and
+ *   cross-checked against both the stored hash and the ledger-committed
+ *   proposal's hash.
+ *
+ * The hash travels in both contracts, and the ledger refuses execution when
+ * they disagree — an operator cannot swap terms after approval. `operator` is
+ * part of the hashed terms so an approval cut for one operator's proposal
+ * cannot be replayed under another operator.
  */
 export interface ProposalTerms {
+  operator: string;
   proposalId: string;
   currency: string;
   obligationCids: string[];
@@ -93,6 +102,7 @@ export interface ProposalTerms {
 
 export function canonicalProposalTerms(terms: ProposalTerms): string {
   return JSON.stringify({
+    operator: terms.operator,
     proposalId: terms.proposalId,
     currency: terms.currency,
     obligationCids: [...terms.obligationCids],

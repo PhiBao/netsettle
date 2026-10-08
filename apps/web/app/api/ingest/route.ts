@@ -28,6 +28,25 @@ export async function POST(request: Request) {
     demo?: boolean;
     roster?: string[];
   };
+  // Bound the ingest workload before parsing: the parser materializes every
+  // row and the judgment fan-out scales with unique values. These caps are far
+  // above any real demo file and turn a multi-GB stall into a 413.
+  const MAX_CSV_CHARS = 512_000;
+  const MAX_ROWS = 5_000;
+  const MAX_ROSTER = 500;
+  if (typeof body.csv === "string") {
+    if (body.csv.length > MAX_CSV_CHARS) {
+      return NextResponse.json({ error: "CSV too large (max 512KB)" }, { status: 413 });
+    }
+    if (body.csv.split("\n").length > MAX_ROWS + 1) {
+      return NextResponse.json({ error: "Too many rows (max 5000)" }, { status: 413 });
+    }
+  }
+  if (Array.isArray(body.roster)) {
+    if (body.roster.length > MAX_ROSTER || body.roster.some((r) => typeof r !== "string" || r.length > 120)) {
+      return NextResponse.json({ error: "Roster too large" }, { status: 413 });
+    }
+  }
   const session = await getSessionStore();
   const store = resetSessionStore(session.sessionId);
   resetObligationCounter();

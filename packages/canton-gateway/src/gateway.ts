@@ -324,6 +324,17 @@ export class CantonGateway {
       currency: String(c.payload.currency ?? ""),
     }));
   }
+
+  /**
+   * Read one live NettingProposal by contract id, or null when it is gone.
+   * Used at approval time to cross-check the session's terms hash against what
+   * the ledger actually committed — so a mutated session store cannot get an
+   * approval cut for terms the ledger never saw.
+   */
+  async getProposal(operator: string, contractId: string): Promise<Json | null> {
+    const contracts = await this.activeContracts(operator, "NettingProposal");
+    return contracts.find((c) => c.contractId === contractId)?.payload ?? null;
+  }
 }
 
 /**

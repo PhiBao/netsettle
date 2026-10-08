@@ -115,6 +115,8 @@ export function withSession<T extends NextResponse>(
     response.cookies.set(SESSION_COOKIE, session.sessionId, {
       httpOnly: true,
       sameSite: "lax",
+      // Secure only in production: local sandbox runs over plain HTTP.
+      secure: process.env.NODE_ENV === "production",
       path: "/",
       maxAge: 60 * 60 * 24,
     });

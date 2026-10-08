@@ -42,7 +42,12 @@ async function askJudgment<T = any>(
   questions: Record<string, unknown>,
   key: string,
 ): Promise<T | null> {
-  const timeoutMs = Number(process.env.TYPESAFE_TIMEOUT_MS ?? 6000);
+  const rawTimeout = Number(process.env.TYPESAFE_TIMEOUT_MS ?? 6000);
+  // Clamp: NaN (or absurd values) would otherwise silently disable timeouts
+  // (NaN fires immediately) or stall batches indefinitely.
+  const timeoutMs = Number.isFinite(rawTimeout)
+    ? Math.min(Math.max(rawTimeout, 1000), 30_000)
+    : 6000;
   try {
     const response = await Promise.race([
       ask(state, questions),

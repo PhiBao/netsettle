@@ -18,8 +18,15 @@ template Obligation
     signatory operator, debtor
     observer creditor
 
-    -- Consuming: an obligation can only be archived as part of an executed
-    -- netting proposal, inside the same atomic transaction.
+    -- Consuming: archives the obligation. This choice is operator-controlled by
+    -- design (liveness: a debtor must never be able to block archival of their
+    -- own settled debt, and the operator is the party that runs settlement).
+    -- It does NOT by itself prove a settlement happened: settlement integrity
+    -- (approvals from every stakeholder, matching terms, receipts issued)
+    -- is enforced in NettingProposal.Execute below, which is the only path
+    -- that issues SettlementReceipts. Direct exercise archives without receipts
+    -- and is visible on-ledger as such; operating procedure must treat an
+    -- obligation archived with no corresponding receipts as an incident.
     choice Settle : ()
       controller operator
       do return ()
@@ -62,7 +69,7 @@ template NettingProposal
     -- Canonical hash of the terms above; approvers sign over this value.
     termsHash : Text
   where
-    ensure proposalId /= "" && not (null obligationCids) && termsHash /= ""
+    ensure proposalId /= "" && not (null obligationCids) && not (null requiredApprovers) && termsHash /= ""
     signatory operator
     observer requiredApprovers
 
@@ -79,6 +86,16 @@ template NettingProposal
         assertMsg
           "approval does not cover these proposal terms"
           (all (\a -> a.proposalId /= proposalId || a.termsHash == termsHash) approvals)
+        assertMsg
+          "approval from wrong operator"
+          (all (\a -> a.proposalId /= proposalId || a.operator == operator) approvals)
+        -- The approver set must cover every stakeholder of every settled debt.
+        -- requiredApprovers is operator-supplied, so without this check the
+        -- operator could settle a victim's obligation using approvals from a
+        -- colluding party the victim never authorized.
+        obligations <- mapA (\cid -> fetch cid) obligationCids
+        let stakeholders = concatMap (\o -> [o.debtor, o.creditor]) obligations
+        assertMsg "approvers must cover all obligation stakeholders" (all (`elem` approvers) stakeholders)
         mapA (\obligationCid -> exercise obligationCid Settle) obligationCids
         mapA
           (\(from, to, amount) ->
@@ -94,7 +111,11 @@ template NettingProposal
           residuals
 
 -- Per-subsidiary evidence of settlement. FROM and TO observe only their own
--- receipt; they learn nothing about other residuals in the batch.
+-- receipt; they learn nothing about other residuals in the batch *from the
+-- receipt itself*. Note the proposal-level caveat: every required approver
+-- observes the full NettingProposal including the complete residual matrix,
+-- which informed consent requires. Receipt partitioning limits what a party
+-- learns after the fact, not what approvers see while deciding.
 template SettlementReceipt
   with
     operator : Party

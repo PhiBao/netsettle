@@ -1,4 +1,5 @@
 import type { PaymentFileRow } from "./paymentFile.js";
+import { formatMinor, parseAmountToMinor } from "./money.js";
 
 export interface Pain001Options {
   messageId: string;
@@ -39,7 +40,16 @@ export function buildPain001(rows: PaymentFileRow[], options: Pain001Options): s
     list.push(row);
     groups.set(row.from, list);
   }
-  const total = rows.reduce((sum, r) => sum + Number(r.amountMajor), 0);
+  // Control sums are computed in integer minor units, never floats: binary
+  // floating point can drift by a cent (0.1+0.2), and toFixed(2) is wrong for
+  // 0- and 3-decimal currencies. amountMajor round-trips exactly because it was
+  // produced by formatMinor for the same currency.
+  const toMinor = (r: PaymentFileRow): bigint => parseAmountToMinor(r.amountMajor, r.currency);
+  const sumMinor = (list: PaymentFileRow[]): bigint => list.reduce((sum, r) => sum + toMinor(r), 0n);
+  // formatMinor appends " USD"; control sums carry no currency suffix.
+  const sumMajor = (list: PaymentFileRow[]): string =>
+    formatMinor(sumMinor(list), currency).replace(/ [A-Z]{3}$/, "");
+  const total = sumMajor(rows);
   const requestedDate = options.requestedExecutionDate ?? rows[0].valueDate;
 
   const txXml = (row: PaymentFileRow): string => `          <CdtTrfTxInf>
@@ -65,13 +75,13 @@ export function buildPain001(rows: PaymentFileRow[], options: Pain001Options): s
           </CdtTrfTxInf>`;
 
   const pmtInfXml = ([debtor, list]: [string, PaymentFileRow[]], i: number): string => {
-    const subtotal = list.reduce((sum, r) => sum + Number(r.amountMajor), 0);
+    const subtotal = sumMajor(list);
     const txs = list.map(txXml).join("\n");
     return `      <PmtInf>
         <PmtInfId>${esc(`${options.messageId}-PMT-${i + 1}`)}</PmtInfId>
         <PmtMtd>TRF</PmtMtd>
         <NbOfTxs>${list.length}</NbOfTxs>
-        <CtrlSum>${subtotal.toFixed(2)}</CtrlSum>
+        <CtrlSum>${esc(subtotal)}</CtrlSum>
         <ReqdExctnDt>
           <Dt>${esc(requestedDate)}</Dt>
         </ReqdExctnDt>
@@ -97,7 +107,7 @@ ${txs}
       <MsgId>${esc(options.messageId)}</MsgId>
       <CreDtTm>${esc(options.creationDateTime)}</CreDtTm>
       <NbOfTxs>${rows.length}</NbOfTxs>
-      <CtrlSum>${total.toFixed(2)}</CtrlSum>
+      <CtrlSum>${esc(total)}</CtrlSum>
       <InitgPty>
         <Nm>NetSettle</Nm>
       </InitgPty>

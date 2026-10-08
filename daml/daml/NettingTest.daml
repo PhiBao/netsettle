@@ -169,3 +169,45 @@ testExecuteFullNetting = script do
   assert (null receipts)
   remaining <- query @Obligation operator
   assert (null remaining)
+
+-- The approver set must cover every stakeholder of every settled debt: a
+-- proposal naming only a colluding party cannot settle a victim's obligation,
+-- even with that party's genuine approval.
+testExecuteBlockedOnWrongApproverSet : Script ()
+testExecuteBlockedOnWrongApproverSet = script do
+  (operator, de, fr, sg) <- setupParties
+  obligations <- createDemoObligations operator de fr sg
+  expiry <- addRelTime <$> getTime <*> pure (days 30)
+  proposal <- submit operator do
+    createCmd NettingProposal with
+      operator
+      proposalId = "PROP-SOCKPUPPET"
+      currency = "USD"
+      obligationCids = obligations
+      residuals = [(de, fr, 2000000)]
+      requiredApprovers = [operator]
+      expiresAt = expiry
+      termsHash = "demo-terms-sockpuppet"
+  sockpuppet <- submit operator do
+    createCmd Approval with operator, approver = operator, proposalId = "PROP-SOCKPUPPET", termsHash = "demo-terms-sockpuppet"
+  submitMustFail operator do exerciseCmd proposal Execute with approvalCids = [sockpuppet]
+  remaining <- query @Obligation operator
+  assert (length remaining == 3)
+
+-- An empty approver set must be rejected at creation: vacuous `all` over `[]`
+-- would otherwise let Execute run with zero approvals.
+testProposalRequiresApprovers : Script ()
+testProposalRequiresApprovers = script do
+  (operator, de, fr, sg) <- setupParties
+  obligations <- createDemoObligations operator de fr sg
+  expiry <- addRelTime <$> getTime <*> pure (days 30)
+  submitMustFail operator do
+    createCmd NettingProposal with
+      operator
+      proposalId = "PROP-EMPTY"
+      currency = "USD"
+      obligationCids = obligations
+      residuals = [(de, fr, 2000000)]
+      requiredApprovers = []
+      expiresAt = expiry
+      termsHash = "demo-terms-empty"

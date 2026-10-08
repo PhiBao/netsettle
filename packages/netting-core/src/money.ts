@@ -46,6 +46,13 @@ export function parseAmountToMinor(amount: string, currency: string): bigint {
       `Too many decimals for ${code}: ${JSON.stringify(amount)}`,
     );
   }
+  // Bound the digit count before BigInt(): the regex above accepts arbitrarily
+  // long digit strings, and a megabyte-long cell would burn CPU/memory far out
+  // of proportion to its wire size. 15 whole digits already exceeds any real
+  // treasury amount by orders of magnitude.
+  if (whole.length > 15) {
+    throw new Error(`Amount too large: ${JSON.stringify(amount.slice(0, 32))}…`);
+  }
   const frac = fracRaw.padEnd(decimals, "0");
   const minor = BigInt(whole + frac);
   if (minor <= 0n) throw new Error(`Amount must be positive: ${JSON.stringify(amount)}`);

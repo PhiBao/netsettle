@@ -169,6 +169,7 @@ describe("proposals", () => {
 
   it("canonicalizes proposal terms deterministically", () => {
     const terms = {
+      operator: "OP",
       proposalId: "PROP-0001",
       currency: "USD",
       obligationCids: ["c1", "c2"],
@@ -190,5 +191,8 @@ describe("proposals", () => {
       }),
     );
     assert.notEqual(canonical, canonicalProposalTerms({ ...terms, proposalId: "PROP-0002" }));
+    // The operator is part of the hashed terms: consent does not migrate
+    // across operators even if every other field is identical.
+    assert.notEqual(canonical, canonicalProposalTerms({ ...terms, operator: "OP2" }));
   });
 });

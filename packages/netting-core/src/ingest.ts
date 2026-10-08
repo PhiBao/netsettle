@@ -191,6 +191,10 @@ export function ingestCsv(text: string): IngestResult {
   const { rows, issues } = parseCsv(text);
   const obligations: Obligation[] = [];
   const seen = new Map<string, number>();
+  // Count of prior distinct fingerprints per near-key: the O(1) equivalent of
+  // scanning all keys with startsWith on every row (which was O(n²) total and
+  // stalled the event loop on large files).
+  const nearCounts = new Map<string, number>();
   rows.forEach((row, index) => {
     const rowNumber = index + 2;
     const { obligation, issues: rowIssues } = validateRow(row, rowNumber);
@@ -219,9 +223,12 @@ export function ingestCsv(text: string): IngestResult {
       obligation.currency,
       obligation.dueDate,
     ].join("|");
-    const nearTwins = [...seen.keys()].filter(
-      (k) => k.startsWith(`${nearKey}|`) && k !== fingerprint,
-    ).length;
+    // Count of prior rows sharing the near-key: the O(1) equivalent of
+    // scanning all keys with startsWith on every row (which was O(n²) total
+    // and stalled the event loop on large files). Only the >= 1 threshold
+    // matters downstream, so counting prior duplicates too is equivalent.
+    const nearTwins = nearCounts.get(nearKey) ?? 0;
+    nearCounts.set(nearKey, nearTwins + 1);
     if (obligation.status === "pending" && nearTwins >= 1) {
       obligation.reviewRequired = true;
       obligation.reviewReasons.push("Same parties/amount/date with a different reference");

@@ -239,7 +239,7 @@ weight it:
 | --- | --- | --- |
 | **Real usage on the public demo** | 7 sessions, 3 completed cycles, 6 settlements, 3 payment files — anonymous counters, no session ids or IPs | live at `/api/metrics` |
 | **On-ledger footprint** | 24 active settlement receipts and **0 obligations or proposals left open** when last measured (2026-09-27) — every cycle started on the shared node finished, nothing half-settled | ledger, queried as each party |
-| **Adversarial testing** | blocked execution, tampered terms, missing approvals, duplicate and unknown-counterparty rows, fully-circular cycles — 4 Daml / 20 core / 8 judgment / 7 gateway tests | repo, `dpm test` + `pnpm -r test` |
+| **Adversarial testing** | blocked execution, tampered terms, wrong-approver-set and empty-approver rejection, missing approvals, duplicate and unknown-counterparty rows, fully-circular cycles — 6 Daml / 20 core / 8 judgment / 7 gateway tests | repo, `dpm test` + `pnpm -r test` |
 | **Problem research** | 6 cited sources on netting adoption and AP-file confidentiality, incl. named treasurers at Weir, Bandwidth, Innospec — cited as evidence of the *problem*, never as users of this product | `VALIDATION.md` |
 | **Outreach in flight** | N targeted asks to ex-treasurers from that research, TMS implementers and AFP/EACT intercompany groups; each offers to compress one of their own cycles from a CSV in 15 minutes. Replies land in the platform journal as they arrive. | `OUTREACH.md` |
 
@@ -266,7 +266,7 @@ before Oct 9.
 | Users who completed the core flow | completed-flow counter (first settlement per session) | **1 measured** in the deploy-verification run | ≥5 external completions |
 | Settlements executed on DevNet | `SettlementReceipt` contracts + proposals | **24 active receipts; 0 active obligations (all started cycles fully settled)** | ≥40 receipts (judges' runs count, nothing left half-settled) |
 | Active parties | operator + subsidiaries on DevNet | **5** (operator + 4 subsidiaries) | 5 held (party allocation is operator-gated) |
-| Tests green | `pnpm -r test` + `dpm test` | 20 core / 8 judgment / 7 gateway / 4 Daml | stay green + route-level tests |
+| Tests green | `pnpm -r test` + `dpm test` | 20 core / 8 judgment / 7 gateway / 6 Daml | stay green + route-level tests |
 
 ### 6. Success criteria after the hackathon
 

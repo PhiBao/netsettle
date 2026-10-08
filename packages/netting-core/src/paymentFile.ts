@@ -14,7 +14,11 @@ export interface PaymentFileRow {
 }
 
 function csvCell(value: string): string {
-  return /[",\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+  // Spreadsheet formula guard: a leading = + - @ would execute on open in
+  // Excel/Sheets. Prefix with a single quote (displayed literally by
+  // spreadsheets, ignored by bank parsers that read the raw text).
+  const guarded = /^[=+\-@]/.test(value) ? `'${value}` : value;
+  return /[",\n\r]/.test(guarded) ? `"${guarded.replace(/"/g, '""')}"` : guarded;
 }
 
 /**

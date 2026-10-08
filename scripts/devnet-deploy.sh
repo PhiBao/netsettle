@@ -80,7 +80,12 @@ EOF
 fi
 
 echo "== allocate parties (Daml Script over gRPC) =="
-cat > /tmp/netsettle-devnet-participant.json <<EOF
+# Bearer-bearing participant config: mktemp + 0600 + trap instead of a
+# predictable 0644 /tmp path, so a co-tenant cannot snapshot the token.
+PARTICIPANT_JSON="$(mktemp /tmp/netsettle-devnet-participant.XXXXXX.json)"
+chmod 600 "$PARTICIPANT_JSON"
+trap 'rm -f "$PARTICIPANT_JSON"' EXIT
+cat > "$PARTICIPANT_JSON" <<EOF
 {"participants": {"devnet": {
   "host": "ledger-api-grpc.participant.hackcanton-01.devnet.naas.noders.services",
   "port": 443,
@@ -91,13 +96,13 @@ EOF
 cd "$ROOT/daml"
 dpm script --dar .daml/dist/netsettle-0.1.0.dar \
   --script-name NettingTest:setupParties \
-  --participant-config /tmp/netsettle-devnet-participant.json \
+  --participant-config "$PARTICIPANT_JSON" \
   --output-file /tmp/netsettle-devnet-parties.json
 dpm script --dar .daml/dist/netsettle-0.1.0.dar \
   --script-name NettingTest:setupDemoExtra \
-  --participant-config /tmp/netsettle-devnet-participant.json \
+  --participant-config "$PARTICIPANT_JSON" \
   --output-file /tmp/netsettle-devnet-party-us.json
-rm -f /tmp/netsettle-devnet-participant.json
+rm -f "$PARTICIPANT_JSON"
 
 PKG="$PKG" python3 - "$ROOT/apps/web/.env.devnet" <<'EOF'
 import json, os, sys

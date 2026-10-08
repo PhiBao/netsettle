@@ -41,8 +41,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No eligible obligations. Resolve reviews first." }, { status: 409 });
   }
   const buckets = groupByCurrency(eligible);
-  const expiry = expiresAt ?? new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString();
+  // expiresAt is caller-supplied and travels into the on-ledger proposal and the
+  // terms hash: reject non-dates and absurd ranges instead of storing them.
   const now = new Date().toISOString();
+  let expiry: string;
+  if (expiresAt === undefined) {
+    expiry = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString();
+  } else {
+    const parsed = new Date(expiresAt);
+    if (Number.isNaN(parsed.getTime())) {
+      return NextResponse.json({ error: "expiresAt is not a valid date" }, { status: 400 });
+    }
+    if (parsed.getTime() <= Date.now() || parsed.getTime() > Date.now() + 365 * 24 * 3600 * 1000) {
+      return NextResponse.json({ error: "expiresAt must be in the future and within a year" }, { status: 400 });
+    }
+    expiry = parsed.toISOString();
+  }
   const displayByKey = new Map<string, string>();
   for (const o of eligible) {
     displayByKey.set(o.debtorKey, o.mappedDebtor ?? o.debtor);
@@ -88,6 +102,7 @@ export async function POST(request: Request) {
       const bindTerms = termsBindingEnabled();
       const termsHash = bindTerms
         ? proposalTermsHash({
+            operator: ledger.operatorParty,
             proposalId: proposal.id,
             currency: proposal.currency,
             obligationCids,

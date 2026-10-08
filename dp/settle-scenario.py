@@ -353,7 +353,9 @@ def active_contracts():
         with urllib.request.urlopen(req, timeout=300) as response:
             body = json.loads(response.read().decode())
     except urllib.error.HTTPError:
-        return []
+        # Return the mapping shape callers expect: a list here would crash
+        # with AttributeError on .get() and mask the real diagnostic.
+        return {}
     out = {}
     for entry in body:
         created_event = (entry.get("contractEntry", {}).get("JsActiveContract") or {}).get("createdEvent")

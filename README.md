@@ -60,7 +60,7 @@ No FX conversion — like offsets like. A fully-circular bucket settles with
 
 **Verified, not asserted:**
 
-- 20 core · 8 judgment · 7 gateway · 4 Daml tests green.
+- 20 core · 8 judgment · 7 gateway · 6 Daml tests green.
 - Full cycle settled on the **shared DevNet node** (`hackcanton-01`), with
   receipts read back from the ledger.
 - Privacy isolation proven live, queried **as each party**, against the session's
@@ -204,7 +204,7 @@ Everything below is load-bearing — nothing here is a logo, and each row shows
 |---|---|---|
 | **Stakeholder privacy (Daml)** | Subsidiaries will never upload payables to a system where counterparties can read them — an AP file leaks suppliers, pricing, margins | `Obligation` is signed by operator + debtor and merely *observed* by the creditor; receipts are observed only by their two parties. Verified live per party via `/api/view` |
 | **Atomic multi-party execution** | Netting N obligations in gross means N chances for partial failure; a half-settled cycle is worse than none | `NettingProposal.Execute` archives every obligation and issues every receipt in a single transaction — one failed approval aborts the whole commit (`testExecuteBlocked`). A fully-cancelling cycle settles with zero receipts (`testExecuteFullNetting`) |
-| **Approvals bound to terms** | An approval for "proposal 7" is worthless if proposal 7 can be rewritten after the fact | Every approval carries the SHA-256 of the canonical proposal terms; `Execute` refuses any approval whose hash doesn't match (`testExecuteBlockedOnTermsMismatch`) |
+| **Approvals bound to terms** | An approval for "proposal 7" is worthless if proposal 7 can be rewritten after the fact | Every approval carries the SHA-256 of the canonical proposal terms; `Execute` refuses any approval whose hash doesn't match (`testExecuteBlockedOnTermsMismatch`). `Execute` also fetches every obligation and requires each debtor/creditor to be among the approvers, so a genuine approval from an unrelated party settles nothing (`testExecuteBlockedOnWrongApproverSet`) |
 | **Decentralized Parties (Canton native)** | An operator whose settlement keys sit on one host is a single point of failure for the whole cycle | The netting operator is a real 2-of-2 party on the ledger; its namespace needs both members' signatures, and the settlement's `GovernableAction_Execute` is **controlled** by that party (§6) |
 | **Daml 3.x contracts** | The netting commit must be enforceable by the ledger, not by our backend's good behavior | `Obligation / Approval / NettingProposal / SettlementReceipt` in `daml/`; `dpm test` green |
 | **JSON Ledger API** | The treasury UI must create, approve, execute, and audit without running a node | Typed gateway (`packages/canton-gateway`): creates, choice exercises, template-filtered ACS reads, ledger-end offsets, Bearer + auto-refresh auth |
@@ -378,13 +378,16 @@ Individual steps are in [dp/README.md](./dp/README.md). Teardown:
 
 ## 10. Verification evidence
 
-**Tests** — 20 core · 8 judgment · 7 gateway · 4 Daml, all green.
+**Tests** — 20 core · 8 judgment · 7 gateway · 6 Daml, all green.
 
 - `dpm test`: `testExecute` (2 receipts, obligations archived),
   `testExecuteBlocked` (missing approval fails, nothing partially settles),
   `testExecuteBlockedOnTermsMismatch` (full approvals with a different terms hash
   cannot settle a rewritten proposal), `testExecuteFullNetting` (a fully
-  cancelling cycle archives all obligations with zero transfers).
+  cancelling cycle archives all obligations with zero transfers),
+  `testExecuteBlockedOnWrongApproverSet` (a genuine approval from a party outside
+  the debts' stakeholders cannot settle them), `testProposalRequiresApprovers`
+  (an empty approver set is rejected at creation, not at execution).
 - `packages/canton-gateway` live test (gated by `CANTON_*`): full cycle against a
   real participant, asserting archival of exactly the created obligations.
 
