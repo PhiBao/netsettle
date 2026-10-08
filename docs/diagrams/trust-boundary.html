@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Who sees what</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&family=Noto+Serif:ital@0;1&family=Noto+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@400&family=Noto+Sans+TC:wght@400;500;600&family=Noto+Serif+TC:wght@400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #f5f5f5;
+      --color-ink:     #2d3142;
+      --color-muted:   #4f5d75;
+      --color-accent:  #eb6c36;
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', 'Noto Serif', 'Noto Serif KR', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+    }
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+    .frame { max-width: 1200px; width: 100%; }
+    .diagram-container { width: 100%; overflow-x: auto; }
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+    .lede { font-size: 1rem; line-height: 1.6; color: var(--color-muted); margin-bottom: 1.5rem; max-width: 70ch; }
+    svg { width: 100%; min-width: 960px; display: block; }
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Trust boundary · NetSettle</p>
+    <h1>Who sees what.</h1>
+    <p class="lede">The operator sees the full obligation graph. Each subsidiary sees only its own legs — a cross-read stops at the boundary. Privacy is enforced by Daml signatories, not by application code.</p>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 960 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="trust-title trust-desc">
+        <title id="trust-title">NetSettle trust boundary</title>
+        <desc id="trust-desc">The operator holds full visibility of the obligation graph while each of four subsidiaries sees only its own legs, and cross-subsidiary reads are blocked.</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
+          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
+        </defs>
+
+        <rect width="100%" height="100%" fill="#f5f5f5"/>
+
+        <!-- trust boundary zone -->
+        <rect x="40" y="108" width="880" height="120" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+        <rect x="52" y="112" width="196" height="12" rx="2" fill="#f5f5f5"/>
+        <text x="150" y="121" fill="rgba(45,49,66,0.40)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.14em">FULL GRAPH · OPERATOR ONLY</text>
+
+        <!-- arrows -->
+        <line x1="244" y1="168" x2="380" y2="168" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+        <rect x="284" y="140" width="56" height="12" rx="2" fill="#f5f5f5"/>
+        <text x="312" y="149" fill="#eb6c36" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">FULL VIEW</text>
+
+        <line x1="140" y1="228" x2="140" y2="300" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <rect x="150" y="256" width="52" height="12" rx="2" fill="#f5f5f5"/>
+        <text x="176" y="265" fill="#7a8399" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">OWN LEGS</text>
+
+        <line x1="366" y1="228" x2="366" y2="300" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <rect x="376" y="256" width="52" height="12" rx="2" fill="#f5f5f5"/>
+        <text x="402" y="265" fill="#7a8399" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">OWN LEGS</text>
+
+        <line x1="592" y1="228" x2="592" y2="300" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <rect x="602" y="256" width="52" height="12" rx="2" fill="#f5f5f5"/>
+        <text x="628" y="265" fill="#7a8399" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">OWN LEGS</text>
+
+        <line x1="818" y1="228" x2="818" y2="300" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <rect x="828" y="256" width="52" height="12" rx="2" fill="#f5f5f5"/>
+        <text x="854" y="265" fill="#7a8399" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">OWN LEGS</text>
+
+        <!-- blocked cross-read: stops before reaching the neighbor -->
+        <line x1="240" y1="380" x2="296" y2="380" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3"/>
+        <line x1="296" y1="372" x2="296" y2="388" stroke="#4f5d75" stroke-width="1.5"/>
+        <rect x="222" y="352" width="58" height="12" rx="2" fill="#f5f5f5"/>
+        <text x="251" y="361" fill="#7a8399" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">NO ACCESS</text>
+
+        <!-- nodes -->
+        <g>
+          <rect x="64" y="140" width="180" height="56" rx="6" fill="#f5f5f5"/>
+          <rect x="64" y="140" width="180" height="56" rx="6" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1.2"/>
+          <rect x="72" y="146" width="32" height="12" rx="2" fill="transparent" stroke="rgba(235,108,54,0.60)" stroke-width="0.8"/>
+          <text x="88" y="155" fill="rgba(235,108,54,0.90)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">PARTY</text>
+          <text x="154" y="176" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Operator</text>
+          <text x="154" y="190" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">sees everything</text>
+        </g>
+        <g>
+          <rect x="380" y="132" width="320" height="72" rx="6" fill="#f5f5f5"/>
+          <rect x="380" y="132" width="320" height="72" rx="6" fill="rgba(45,49,66,0.05)" stroke="#4f5d75" stroke-width="1"/>
+          <rect x="388" y="138" width="36" height="12" rx="2" fill="transparent" stroke="rgba(79,93,117,0.60)" stroke-width="0.8"/>
+          <text x="406" y="147" fill="rgba(79,93,117,0.90)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">STORE</text>
+          <text x="540" y="170" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Obligation graph</text>
+          <text x="540" y="186" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">all contracts · full cycle</text>
+        </g>
+        <g>
+          <rect x="40" y="300" width="200" height="52" rx="6" fill="#f5f5f5"/>
+          <rect x="40" y="300" width="200" height="52" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+          <text x="140" y="326" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Acme DE</text>
+          <text x="140" y="342" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">own legs only</text>
+        </g>
+        <g>
+          <rect x="266" y="300" width="200" height="52" rx="6" fill="#f5f5f5"/>
+          <rect x="266" y="300" width="200" height="52" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+          <text x="366" y="326" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Acme FR</text>
+          <text x="366" y="342" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">own legs only</text>
+        </g>
+        <g>
+          <rect x="492" y="300" width="200" height="52" rx="6" fill="#f5f5f5"/>
+          <rect x="492" y="300" width="200" height="52" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+          <text x="592" y="326" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Acme SG</text>
+          <text x="592" y="342" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">own legs only</text>
+        </g>
+        <g>
+          <rect x="718" y="300" width="200" height="52" rx="6" fill="#f5f5f5"/>
+          <rect x="718" y="300" width="200" height="52" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+          <text x="818" y="326" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Acme US</text>
+          <text x="818" y="342" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">own legs only</text>
+        </g>
+
+        <!-- legend -->
+        <line x1="30" y1="524" x2="930" y2="524" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+        <text x="30" y="540" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.14em">LEGEND</text>
+        <rect x="30" y="548" width="12" height="12" rx="2" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1"/>
+        <text x="48" y="558" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace">full visibility</text>
+        <line x1="220" y1="554" x2="250" y2="554" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <text x="258" y="558" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace">own-legs view</text>
+        <line x1="430" y1="554" x2="460" y2="554" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3"/>
+        <line x1="460" y1="548" x2="460" y2="560" stroke="#4f5d75" stroke-width="1.5"/>
+        <text x="468" y="558" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace">blocked read</text>
+      </svg>
+    </div>
+  </div>
+</body>
+</html>

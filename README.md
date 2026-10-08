@@ -123,34 +123,9 @@ this form two years ago.
 
 ## 3. Architecture
 
-```mermaid
-flowchart TB
-    subgraph UI["apps/web — Next.js + Tailwind"]
-        INGEST["Ingest page<br/>CSV upload / demo dataset"]
-        REVIEW["Review page<br/>ambiguities, duplicates, disputes"]
-        PROPOSAL["Proposal page<br/>gross→net, approvals, settle, receipts"]
-    end
-    subgraph API["Next.js API routes — operator service"]
-        CORE["@netting/core<br/>parse · integer money · net math · proposals · payment files"]
-        JUDGE["@netting/typesafe-judgments<br/>roster mapping · memo kinds · duplicates · triage"]
-        GW["@netting/canton-gateway<br/>typed JSON Ledger API client · token auto-refresh"]
-    end
-    subgraph LEDGER["Canton participant (local sandbox or shared DevNet)"]
-        DAML["netsettle DAR<br/>Obligation · Approval<br/>NettingProposal · SettlementReceipt"]
-    end
-    subgraph BANK["Existing banking rail"]
-        CSV["payment CSV"]
-        PAIN["pain.001 ISO 20022"]
-    end
-    INGEST --> CORE
-    CORE --> JUDGE
-    REVIEW --> CORE
-    PROPOSAL --> CORE
-    CORE --> GW
-    GW <--> DAML
-    PROPOSAL --> CSV
-    PROPOSAL --> PAIN
-```
+> **Diagram:** [System architecture — from CSV to bank file](./docs/diagrams/architecture.html)
+> (self-contained HTML: three pages feed one deterministic core, which consults
+> judgments, commits through the ledger gateway, and exports bank artifacts).
 
 Money math, cycle detection, and proposal state live in deterministic
 TypeScript (`@netting/core`) — no floats (integer minor units throughout), no
@@ -161,23 +136,9 @@ gateway is the only component that touches the ledger.
 
 ### Settlement sequence (the atomic core)
 
-```mermaid
-sequenceDiagram
-    participant T as Treasury UI
-    participant O as Operator service
-    participant L as Canton ledger
-    participant B as Bank
-    T->>O: ingest CSV (10 rows)
-    O->>O: parse · map parties · flag duplicate · exclude unknown
-    T->>O: drop duplicate, resolve reviews
-    O->>L: create Obligation ×8 (operator+debtor co-signed)
-    O->>L: create NettingProposal ×2 (USD + EUR buckets)
-    T->>O: approve as each subsidiary (one Approval contract each)
-    O->>L: Execute — archives obligations, issues receipts, atomically
-    L-->>O: 4 receipts (3 USD + 1 EUR)
-    O->>T: payment CSV + pain.001 (control sums reconcile exactly)
-    T->>B: upload pain.001 through the existing banking rail
-```
+> **Diagram:** [Atomic settlement sequence](./docs/diagrams/settlement-sequence.html)
+> (self-contained HTML: ten messages from ingest to bank upload, ending in one
+> atomic Execute).
 
 ---
 
@@ -188,21 +149,9 @@ about both is the point of this section.
 
 ### 4.1 What each party can see
 
-```mermaid
-flowchart LR
-    subgraph ALL["Obligation graph (full)"]
-    end
-    OP([Operator<br/>sees everything])
-    DEA["Acme DE<br/>own legs only"]
-    FRA["Acme FR<br/>own legs only"]
-    SGA["Acme SG<br/>own legs only"]
-    USA["Acme US<br/>own legs only"]
-    OP -.-> ALL
-    ALL --> DEA
-    ALL --> FRA
-    ALL --> SGA
-    ALL --> USA
-```
+> **Diagram:** [Trust boundary — who sees what](./docs/diagrams/trust-boundary.html)
+> (self-contained HTML: the operator holds full visibility while each subsidiary
+> sees only its own legs; cross-reads stop at the boundary).
 
 Subsidiaries are private **from each other**, enforced by Daml
 signatories/observers and verified live per party via `/api/view`: the endpoint

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetSettle system architecture</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&family=Noto+Serif:ital@0;1&family=Noto+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@400&family=Noto+Sans+TC:wght@400;500;600&family=Noto+Serif+TC:wght@400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #f5f5f5;
+      --color-ink:     #2d3142;
+      --color-muted:   #4f5d75;
+      --color-accent:  #eb6c36;
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', 'Noto Serif', 'Noto Serif KR', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+    }
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+    .frame { max-width: 1200px; width: 100%; }
+    .diagram-container { width: 100%; overflow-x: auto; }
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+    .lede { font-size: 1rem; line-height: 1.6; color: var(--color-muted); margin-bottom: 1.5rem; max-width: 70ch; }
+    svg { width: 100%; min-width: 960px; display: block; }
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Architecture · NetSettle</p>
+    <h1>From CSV to bank file.</h1>
+    <p class="lede">Three pages feed one deterministic core. The core consults judgment models, commits through a typed ledger client, and the proposal page exports bank artifacts. Only the gateway touches Canton.</p>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 960 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="arch-title arch-desc">
+        <title id="arch-title">NetSettle system architecture</title>
+        <desc id="arch-desc">Three app pages feed a settlement core that consults judgments, writes through a ledger gateway to Canton contracts, and exports payment files.</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
+          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
+        </defs>
+
+        <rect width="100%" height="100%" fill="#f5f5f5"/>
+
+        <!-- zones -->
+        <rect x="40" y="76" width="240" height="240" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+        <rect x="92" y="80" width="136" height="12" rx="2" fill="#f5f5f5"/>
+        <text x="160" y="89" fill="rgba(45,49,66,0.40)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.14em">WEB APP</text>
+        <rect x="304" y="76" width="288" height="176" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+        <rect x="368" y="80" width="160" height="12" rx="2" fill="#f5f5f5"/>
+        <text x="448" y="89" fill="rgba(45,49,66,0.40)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.14em">OPERATOR SERVICE</text>
+        <rect x="616" y="76" width="304" height="120" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+        <rect x="700" y="80" width="136" height="12" rx="2" fill="#f5f5f5"/>
+        <text x="768" y="89" fill="rgba(45,49,66,0.40)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.14em">CANTON LEDGER</text>
+
+        <!-- arrows (behind nodes) -->
+        <line x1="264" y1="124" x2="320" y2="124" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <path d="M 264,204 H 276 Q 284,204 284,196 V 148 Q 284,140 292,140 H 320" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <path d="M 264,276 H 288 Q 296,276 296,268 V 162 Q 296,154 304,154 H 320" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="384" y1="164" x2="384" y2="188" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="516" y1="164" x2="516" y2="188" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <path d="M 576,216 H 590 Q 598,216 598,208 V 158 Q 598,150 606,150 H 632" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <path d="M 632,166 H 620 Q 612,166 612,174 V 192 Q 612,200 604,200 H 576" fill="none" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+        <path d="M 125,300 V 332 Q 125,340 133,340 H 384 Q 392,340 392,348 V 360" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <path d="M 195,300 V 320 Q 195,328 203,328 H 600 Q 608,328 608,336 V 360" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+        <!-- nodes -->
+        <g>
+          <rect x="56" y="108" width="208" height="48" rx="6" fill="#f5f5f5"/>
+          <rect x="56" y="108" width="208" height="48" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+          <rect x="64" y="114" width="20" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+          <text x="74" y="123" fill="rgba(45,49,66,0.80)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">UI</text>
+          <text x="160" y="140" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Ingest</text>
+          <text x="160" y="150" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">CSV upload · demo data</text>
+        </g>
+        <g>
+          <rect x="56" y="180" width="208" height="48" rx="6" fill="#f5f5f5"/>
+          <rect x="56" y="180" width="208" height="48" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+          <rect x="64" y="186" width="20" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+          <text x="74" y="195" fill="rgba(45,49,66,0.80)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">UI</text>
+          <text x="160" y="212" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Review</text>
+          <text x="160" y="222" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">flags · duplicates</text>
+        </g>
+        <g>
+          <rect x="56" y="252" width="208" height="48" rx="6" fill="#f5f5f5"/>
+          <rect x="56" y="252" width="208" height="48" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+          <rect x="64" y="258" width="20" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+          <text x="74" y="267" fill="rgba(45,49,66,0.80)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">UI</text>
+          <text x="160" y="284" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Proposal</text>
+          <text x="160" y="294" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">net · approve · settle</text>
+        </g>
+        <g>
+          <rect x="320" y="108" width="256" height="56" rx="6" fill="#f5f5f5"/>
+          <rect x="320" y="108" width="256" height="56" rx="6" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1.2"/>
+          <rect x="328" y="114" width="28" height="12" rx="2" fill="transparent" stroke="rgba(235,108,54,0.60)" stroke-width="0.8"/>
+          <text x="342" y="123" fill="rgba(235,108,54,0.90)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">CORE</text>
+          <text x="448" y="142" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Netting core</text>
+          <text x="448" y="156" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">parse · money · proposals</text>
+        </g>
+        <g>
+          <rect x="320" y="188" width="128" height="48" rx="6" fill="#f5f5f5"/>
+          <rect x="320" y="188" width="128" height="48" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+          <rect x="328" y="194" width="24" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+          <text x="340" y="203" fill="rgba(45,49,66,0.80)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">AI</text>
+          <text x="384" y="220" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Judgments</text>
+          <text x="384" y="230" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">roster · triage</text>
+        </g>
+        <g>
+          <rect x="456" y="188" width="120" height="48" rx="6" fill="#f5f5f5"/>
+          <rect x="456" y="188" width="120" height="48" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+          <rect x="464" y="194" width="24" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+          <text x="476" y="203" fill="rgba(45,49,66,0.80)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">API</text>
+          <text x="516" y="220" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Gateway</text>
+          <text x="516" y="230" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">ledger client</text>
+        </g>
+        <g>
+          <rect x="632" y="108" width="272" height="72" rx="6" fill="#f5f5f5"/>
+          <rect x="632" y="108" width="272" height="72" rx="6" fill="rgba(45,49,66,0.05)" stroke="#4f5d75" stroke-width="1"/>
+          <rect x="640" y="114" width="32" height="12" rx="2" fill="transparent" stroke="rgba(79,93,117,0.60)" stroke-width="0.8"/>
+          <text x="656" y="123" fill="rgba(79,93,117,0.90)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">DAML</text>
+          <text x="768" y="148" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">netsettle DAR</text>
+          <text x="768" y="164" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">Obligation · Approval · Receipts</text>
+        </g>
+        <g>
+          <rect x="296" y="360" width="192" height="48" rx="6" fill="#f5f5f5"/>
+          <rect x="296" y="360" width="192" height="48" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+          <rect x="304" y="366" width="28" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+          <text x="318" y="375" fill="rgba(45,49,66,0.80)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">FILE</text>
+          <text x="392" y="392" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">payment CSV</text>
+          <text x="392" y="402" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">one row per transfer</text>
+        </g>
+        <g>
+          <rect x="512" y="360" width="192" height="48" rx="6" fill="#f5f5f5"/>
+          <rect x="512" y="360" width="192" height="48" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+          <rect x="520" y="366" width="28" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+          <text x="534" y="375" fill="rgba(45,49,66,0.80)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">FILE</text>
+          <text x="608" y="392" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">pain.001</text>
+          <text x="608" y="402" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">ISO 20022</text>
+        </g>
+
+        <!-- legend -->
+        <line x1="30" y1="524" x2="930" y2="524" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+        <text x="30" y="540" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.14em">LEGEND</text>
+        <rect x="30" y="548" width="12" height="12" rx="2" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1"/>
+        <text x="48" y="558" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace">settlement core</text>
+        <rect x="210" y="548" width="12" height="12" rx="2" fill="rgba(45,49,66,0.05)" stroke="#4f5d75" stroke-width="1"/>
+        <text x="228" y="558" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace">ledger package</text>
+        <line x1="390" y1="554" x2="420" y2="554" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+        <text x="428" y="558" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace">read-back</text>
+      </svg>
+    </div>
+  </div>
+</body>
+</html>
