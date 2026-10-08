@@ -9,7 +9,7 @@ sdk-version: 3.5.1
 # stays a plain Text rather than Optional Text.
 name: netsettle-v2
 source: daml
-version: 0.2.0
+version: 1.0.0
 dependencies:
   - daml-prim
   - daml-stdlib
